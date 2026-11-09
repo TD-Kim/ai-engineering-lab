@@ -5,8 +5,8 @@ Level 2: EmbeddingLayer(nn.Module) 직접 구현, 학습형 위치 임베딩, �
 Level 3: PCA 2차원 투영 (TODO 12), nn.Embedding 비교(tests), 벡터 공간 시각화(run_demo.py),
          사전학습 임베딩 비교(compare_pretrained.py, 선택)
 
-진행 확인: python part1_ai_fundamentals/embedding/starter.py   (남은 TODO 목록 출력)
-검사:     IMPL=starter pytest part1_ai_fundamentals/embedding
+진행 확인: python part1_ai_fundamentals/embedding/advanced/starter.py   (남은 TODO 목록 출력)
+검사:     IMPL=starter pytest part1_ai_fundamentals/embedding/advanced
 
 왜 Token ID 를 벡터로 바꾸나?
 - Token ID 는 이름표다. id 7 과 id 8 이 id 7 과 id 300 보다 "가깝다"는 뜻이 전혀 없다.
@@ -193,8 +193,8 @@ def _report_progress() -> None:
             print(f"[미구현] {name}")
     if remaining:
         print(f"\n남은 TODO {remaining}개 — 위에서부터 순서대로 채우세요(뒤 TODO 는 앞 TODO 를 사용합니다). 채운 뒤 검사:")
-        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/embedding")
-        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/embedding; Remove-Item Env:IMPL')
+        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/embedding/advanced")
+        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/embedding/advanced; Remove-Item Env:IMPL')
     else:
         print("\n모든 TODO 가 구현되었습니다. 이제 pytest 로 정답 여부를 확인하세요.")
 

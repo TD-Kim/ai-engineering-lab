@@ -1,7 +1,7 @@
 """P1-01 Level 3: 직접 구현한 BPE 와 Hugging Face `tokenizers` 의 BPE 를 같은 말뭉치에서 비교한다.
 
 사용법:
-    python part1_ai_fundamentals/tokenizer/compare_with_hf.py --impl solution --merges 200
+    python part1_ai_fundamentals/tokenizer/advanced/compare_with_hf.py --impl solution --merges 200
 
 비교 항목
 - 처음 N 개 병합 규칙의 겹침 비율 (같은 알고리즘이면 대부분 겹친다)
@@ -21,7 +21,7 @@ import importlib
 import sys
 from pathlib import Path
 
-CORPUS = Path(__file__).resolve().parents[1] / "data" / "corpus_ko_en.txt"
+CORPUS = Path(__file__).resolve().parents[2] / "data" / "corpus_ko_en.txt"
 
 
 SPECIAL_TOKENS = ["<pad>", "<unk>", "<bos>", "<eos>"]  # 직접 구현과 같은 순서·같은 개수
@@ -106,7 +106,7 @@ def main() -> None:
     try:
         result = compare(impl, CORPUS.read_text(encoding="utf-8"), num_merges=args.merges)
     except NotImplementedError as exc:
-        print(f"[미구현] {exc} — {args.impl}.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/tokenizer/{args.impl}.py 로 확인)")
+        print(f"[미구현] {exc} — {args.impl}.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/tokenizer/advanced/{args.impl}.py 로 확인)")
         return
     for key, value in result.items():
         print(f"{key:>22}: {value}")

@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 VALID_IMPLS = ("solution", "starter")
+PART1_DIR = Path(__file__).resolve().parent
 
 
 def _impl_name() -> str:
@@ -37,10 +38,15 @@ def load_module(path: Path, module_name: str):
 
 @pytest.fixture(scope="module")
 def impl(request):
-    """<실습 디렉터리>/tests/test_*.py 기준으로 <실습 디렉터리>/{IMPL}.py 를 불러온다."""
+    """<실습>[/advanced]/tests/test_*.py 기준으로 <실습>[/advanced]/{IMPL}.py 를 불러온다.
+
+    모듈 이름은 part1_ai_fundamentals 기준 상대 경로로 만든다(예: part1_tokenizer_advanced_solution).
+    여러 실습에 같은 이름의 advanced/solution.py 가 있어도 sys.modules 에서 섞이지 않는다.
+    """
     name = _impl_name()
     lab_dir = Path(request.path).resolve().parent.parent
-    return load_module(lab_dir / f"{name}.py", f"part1_{lab_dir.name}_{name}")
+    rel = lab_dir.relative_to(PART1_DIR)
+    return load_module(lab_dir / f"{name}.py", "part1_" + "_".join(rel.parts) + f"_{name}")
 
 
 def pytest_report_header(config):

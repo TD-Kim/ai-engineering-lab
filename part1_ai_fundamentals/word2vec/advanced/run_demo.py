@@ -2,8 +2,8 @@
 손실 곡선 요약과 학습 전후 단어 벡터(코사인 유사도, 최근접 이웃)를 비교한다.
 
 사용법:
-    python part1_ai_fundamentals/word2vec/run_demo.py --impl solution
-    python part1_ai_fundamentals/word2vec/run_demo.py --impl starter --epochs 100
+    python part1_ai_fundamentals/word2vec/advanced/run_demo.py --impl solution
+    python part1_ai_fundamentals/word2vec/advanced/run_demo.py --impl starter --epochs 100
 
 - 시드 고정(0), CPU 에서 수 초. GPU 가 있으면 자동으로 cuda 사용.
 - 비교 쌍: (cat, dog), (mat, log), (sat, likes) 는 말뭉치에서 같은 문장 구조에 나오는 쌍,
@@ -51,4 +51,4 @@ if __name__ == "__main__":
     try:
         main()
     except NotImplementedError as exc:
-        print(f"[미구현] {exc} — starter.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/word2vec/starter.py 로 확인)")
+        print(f"[미구현] {exc} — starter.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/word2vec/advanced/starter.py 로 확인)")

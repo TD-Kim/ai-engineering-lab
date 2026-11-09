@@ -4,7 +4,7 @@ Level 1: 문자열 → 토큰(공백/문자 단위) → ID, Vocabulary, 특수 �
 Level 2: BPE(Byte Pair Encoding) 학습·인코딩·디코딩 직접 구현 (TODO 6~10)
 Level 3: HF `tokenizers` BPE 와 비교 → compare_with_hf.py
 
-진행 확인: python part1_ai_fundamentals/tokenizer/solution.py
+진행 확인: python part1_ai_fundamentals/tokenizer/advanced/solution.py
 REF: Sennrich et al., 2016, "Neural Machine Translation of Rare Words with Subword Units", §3.2
 """
 from __future__ import annotations
@@ -250,8 +250,8 @@ def _report_progress() -> None:
             print(f"[미구현] {name}")
     if remaining:
         print(f"\n남은 TODO {remaining}개 — 위에서부터 순서대로 채우세요(뒤 TODO 는 앞 TODO 를 사용합니다). 채운 뒤 검사:")
-        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/tokenizer")
-        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/tokenizer; Remove-Item Env:IMPL')
+        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/tokenizer/advanced")
+        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/tokenizer/advanced; Remove-Item Env:IMPL')
     else:
         print("\n모든 TODO 가 구현되었습니다. 이제 pytest 로 정답 여부를 확인하세요.")
 

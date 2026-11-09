@@ -1,7 +1,7 @@
 """P1-05 Level 3: 직접 구현한 어텐션을 PyTorch 내장 구현과 같은 가중치로 비교한다.
 
 사용법:
-    python part1_ai_fundamentals/transformer/compare_with_torch.py --impl solution
+    python part1_ai_fundamentals/transformer/advanced/compare_with_torch.py --impl solution
 
 비교 항목
 1. SelfAttention(단일 헤드) vs F.scaled_dot_product_attention

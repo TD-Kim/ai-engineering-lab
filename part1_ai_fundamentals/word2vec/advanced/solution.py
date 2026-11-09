@@ -1,12 +1,11 @@
-"""P1-03 Word2Vec — 실습 코드 (TODO 를 채우세요).
+"""P1-03 Word2Vec — 정답 코드.
 
 Level 1: 단어→ID 어휘, 윈도우 기반 Skip-gram 쌍 / CBOW 예제(패딩+마스크) 만들기 (TODO 1~3)
 Level 2: 음성 샘플링 분포(unigram^3/4), 음성 샘플 추출, Skip-gram + Negative Sampling, CBOW(마스크 평균 + softmax),
          Skip-gram 학습 한 단계 (TODO 4~10)
 Level 3: 코사인 최근접 이웃 (TODO 11), gensim 비교(compare_with_gensim.py), 학습 전후 비교(run_demo.py)
 
-진행 확인: python part1_ai_fundamentals/word2vec/starter.py   (남은 TODO 목록 출력)
-검사:     IMPL=starter pytest part1_ai_fundamentals/word2vec
+진행 확인: python part1_ai_fundamentals/word2vec/advanced/solution.py
 
 분포 가설(Distributional Hypothesis): "비슷한 문맥에 나오는 단어는 비슷한 뜻을 갖는다."
 Word2Vec 은 이 가설을 그대로 학습 목표로 만든다. 단어의 벡터로 주변(윈도우 안) 단어를 맞히게(Skip-gram) 하거나,
@@ -21,14 +20,14 @@ from __future__ import annotations
 import random
 import re
 import time
-from collections import Counter  # noqa: F401  (TODO 1 에서 사용)
+from collections import Counter
 from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
-CORPUS = Path(__file__).resolve().parents[1] / "data" / "corpus_ko_en.txt"
+CORPUS = Path(__file__).resolve().parents[2] / "data" / "corpus_ko_en.txt"
 
 
 # ---------------------------------------------------------------------------
@@ -82,34 +81,42 @@ def build_vocab(
     sentences: list[list[str]], min_count: int = 1
 ) -> tuple[dict[str, int], list[str], list[int]]:
     """반환: (word_to_id, id_to_word, counts). id 는 빈도 내림차순(동점은 사전순)."""
-    # TODO 1: 단어 빈도를 세고 min_count 미만을 버린 뒤, 빈도 내림차순(동점은 사전순)으로 id 를 매기세요.
-    #         반환: (word_to_id, id_to_word, counts) — counts[i] 는 id i 단어의 빈도
-    # HINT 1: 정렬 기준이 (빈도 큰 순, 같으면 사전순) 두 단계입니다.
-    # HINT 2: collections.Counter, list.sort(key=...) 에 튜플 키 (빈도의 음수, 단어)
-    # WHY: 정렬이 없으면 실행마다 id 가 달라지고, counts 순서가 id 와 어긋나면 음성 샘플링 분포가 엉뚱한 단어를 가리킵니다.
-    raise NotImplementedError("TODO 1")
+    # TODO 1
+    counter = Counter(w for s in sentences for w in s)
+    # min_count 미만 단어 제거: 한두 번 나온 단어는 벡터를 학습할 근거가 부족하고 어휘만 키운다.
+    items = [(w, c) for w, c in counter.items() if c >= min_count]
+    # 빈도순 정렬: 실행마다 같은 id(재현성) + 자주 나오는 단어가 작은 id (gensim 도 같은 관례)
+    items.sort(key=lambda wc: (-wc[1], wc[0]))
+    id_to_word = [w for w, _ in items]                         # list: id → 단어
+    word_to_id = {w: i for i, w in enumerate(id_to_word)}      # dict: 단어 → id
+    counts = [c for _, c in items]                             # counts[id] = 빈도 (음성 샘플링 분포에 사용)
+    return word_to_id, id_to_word, counts
 
 
 def skipgram_pairs(ids: list[int], window: int) -> list[tuple[int, int]]:
     """(center, context) 쌍. 중심 단어 앞뒤 window 개 이내(같은 문장)의 모든 단어가 context."""
-    # TODO 2: 각 위치 i 의 중심 단어와, 앞뒤 window 개 이내(같은 문장)의 단어들로 (center, context) 쌍을 만드세요.
-    # HINT 1: 문장 경계에서 범위를 잘라 내고, 자기 자신(j == i)은 제외합니다.
-    # HINT 2: 범위 시작은 0 보다 작아질 수 없고, 끝은 len(ids) 를 넘을 수 없습니다(max, min).
-    # WHY: 분포 가설 — "주변 단어"가 곧 학습 신호입니다. 경계를 넘기면 다른 문장 단어가 섞이고, 자기 자신을 넣으면 쓸모없는 신호가 생깁니다.
-    # REF: Mikolov et al., 2013a, "Efficient Estimation of Word Representations in Vector Space", §3.2
-    raise NotImplementedError("TODO 2")
+    # TODO 2  REF: Mikolov et al., 2013a, §3.2
+    pairs = []
+    for i, center in enumerate(ids):
+        # 문장 경계에서 범위를 자른다: 다른 문장의 단어는 문맥이 아니다.
+        lo, hi = max(0, i - window), min(len(ids), i + window + 1)
+        for j in range(lo, hi):
+            if j != i:  # 자기 자신은 문맥이 아니다(자기 예측은 쓸모없는 신호)
+                pairs.append((center, ids[j]))
+    return pairs
 
 
 def cbow_examples(ids: list[int], window: int, pad_id: int) -> list[tuple[list[int], int]]:
     """모든 위치 i 에 대해 (문맥 2*window 개, 중심 단어). 문맥이 모자라면 pad_id 로 채운다."""
-    # TODO 3: 모든 위치 i 에 대해 (앞 window 개 + 뒤 window 개 문맥, 중심 단어) 를 만들고,
-    #         문맥이 2*window 개보다 적으면 뒤를 pad_id 로 채우세요.
-    # HINT 1: 문장 앞·뒤 끝에서는 한쪽 문맥이 모자랍니다. 그래도 예제를 버리지 않습니다.
-    # HINT 2: 리스트 슬라이싱(시작이 음수가 되지 않게 max), [pad_id] * n
-    # WHY: "양쪽 문맥이 다 있는 위치"만 쓰면 짧은 문장 앞쪽 단어가 중심 단어로 거의 나오지 않아 학습 신호를 잃습니다
-    #      (이 저장소에서 실제로 CBOW 테스트가 실패했던 원인 — README 9절).
-    # REF: Mikolov et al., 2013a, §3.1
-    raise NotImplementedError("TODO 3")
+    # TODO 3  REF: Mikolov et al., 2013a, §3.1
+    examples = []
+    for i in range(len(ids)):
+        context = ids[max(0, i - window) : i] + ids[i + 1 : i + window + 1]
+        # 길이를 2*window 로 고정해야 배치를 (B, 2*window) 텐서로 쌓을 수 있다. 빈 자리는 pad_id, 모델이 마스크로 뺀다.
+        # 왜 모든 위치를 쓰나: "양쪽 문맥이 다 있는 위치"만 쓰면 짧은 문장의 단어(특히 문장 앞쪽 단어)가
+        # 중심 단어로 거의 등장하지 않아 학습 신호를 잃는다(README 9절 CBOW 실패 기록).
+        examples.append((context + [pad_id] * (2 * window - len(context)), ids[i]))
+    return examples
 
 
 # ---------------------------------------------------------------------------
@@ -117,24 +124,23 @@ def cbow_examples(ids: list[int], window: int, pad_id: int) -> list[tuple[list[i
 # ---------------------------------------------------------------------------
 def noise_distribution(counts: list[int], power: float = 0.75) -> torch.Tensor:
     """P_n(w) ∝ count(w)^power  (합이 1 인 (V,) 텐서)"""
-    # TODO 4: count^power 를 정규화한 확률 분포 (V,) 를 반환하세요 (합 1).
-    # HINT 1: 거듭제곱 후 전체 합으로 나눕니다.
-    # HINT 2: float64 로 계산한 뒤 마지막에 float32 로 바꾸면 정밀도 문제가 없습니다.
-    # WHY: power=1 이면 "the" 같은 고빈도어가 음성 샘플을 독차지하고, power=0 이면 희귀어가 과하게 뽑힙니다.
-    #      3/4 제곱은 그 사이에서 고빈도어 과대표집을 완화하며, 논문에서 실험적으로 가장 좋았던 값입니다.
-    # REF: Mikolov et al., 2013b, "Distributed Representations of Words and Phrases and their Compositionality", §2.2
-    raise NotImplementedError("TODO 4")
+    # TODO 4  REF: Mikolov et al., 2013b, §2.2
+    # 3/4 제곱: 빈도 그대로(power=1)면 "the" 같은 고빈도어가 음성 샘플을 거의 독차지하고,
+    # 균등(power=0)이면 희귀어가 너무 자주 뽑힌다. 논문은 unigram 분포의 3/4 제곱이 실험에서 가장 좋았다고 보고한다.
+    # 예: 빈도 16 과 1 → 그대로면 16:1, 3/4 제곱이면 8:1 로 격차가 줄어 고빈도어 과대표집이 완화된다.
+    probs = torch.tensor(counts, dtype=torch.float64) ** power  # float64: 큰 빈도에서도 정밀도 유지
+    return (probs / probs.sum()).float()                       # (V,), 합 1
 
 
 def sample_negatives(
     noise: torch.Tensor, batch_size: int, k: int, generator: torch.Generator | None = None
 ) -> torch.Tensor:
     """noise 분포에서 (batch_size, k) 개의 음성 단어 id 를 복원 추출한다."""
-    # TODO 5: noise 분포에서 batch_size * k 개를 복원 추출해 (batch_size, k) 로 만드세요.
-    # HINT 1: 같은 단어가 여러 번 뽑혀도 됩니다(복원 추출).
-    # HINT 2: torch.multinomial(..., replacement=True, generator=generator), Tensor.view
-    # WHY: generator 를 넘겨야 같은 seed 에서 같은 음성 샘플이 나와 실험을 재현할 수 있습니다.
-    raise NotImplementedError("TODO 5")
+    # TODO 5
+    # replacement=True: 같은 단어가 여러 번 뽑힐 수 있다(원 구현과 같음).
+    # 정답 문맥 단어가 우연히 뽑히는 경우는 드물어 무시한다(원 구현과 같은 단순화).
+    flat = torch.multinomial(noise, batch_size * k, replacement=True, generator=generator)  # (B*K,)
+    return flat.view(batch_size, k)                                                          # (B, K)
 
 
 class SkipGramNegSampling(nn.Module):
@@ -142,25 +148,31 @@ class SkipGramNegSampling(nn.Module):
 
     def __init__(self, vocab_size: int, dim: int):
         super().__init__()
-        # TODO 6: self.in_embed (중심 단어용), self.out_embed (문맥 단어용) 두 nn.Embedding(V, D) 를 만들고 초기화하세요.
-        # HINT 1: 원 구현(C 코드 word2vec.c)은 입력 테이블을 아주 작은 균등분포(±0.5/D), 출력 테이블을 0 으로 초기화합니다.
-        # HINT 2: nn.Embedding, nn.init.uniform_, nn.init.zeros_
-        # WHY: 테이블을 하나만 쓰면 자기 자신과의 내적이 항상 커서 학습 신호가 왜곡됩니다.
-        # REF: Mikolov et al., 2013b, §2.2
-        raise NotImplementedError("TODO 6")
+        # TODO 6  REF: Mikolov et al., 2013b, §2.2
+        # 왜 테이블 두 개: 하나만 쓰면 점수가 v_w·v_w(자기 자신과의 내적)를 포함하게 되는데, 이 값은 항상 커서
+        # "단어는 자기 자신의 문맥이다"라는 잘못된 신호가 된다. 입력(중심)/출력(문맥) 역할을 분리한다.
+        self.in_embed = nn.Embedding(vocab_size, dim)   # v: 최종적으로 "단어 벡터"로 쓰는 쪽
+        self.out_embed = nn.Embedding(vocab_size, dim)  # u: 문맥 쪽
+        # word2vec 원 구현(C 코드)과 같은 초기화: 입력은 작은 균등분포, 출력은 0.
+        nn.init.uniform_(self.in_embed.weight, -0.5 / dim, 0.5 / dim)
+        nn.init.zeros_(self.out_embed.weight)
 
     def forward(self, center: torch.Tensor, context: torch.Tensor, negatives: torch.Tensor) -> torch.Tensor:
         """center, context: (B,), negatives: (B, K) -> 스칼라 loss
 
         loss = -log σ(u_o·v_c) - Σ_k log σ(-u_k·v_c)
         """
-        # TODO 7: 양성 점수 u_o·v_c (B,) 와 음성 점수 u_k·v_c (B, K) 를 구해 위 식의 배치 평균을 반환하세요.
-        # HINT 1: 양성은 원소곱 후 마지막 차원 합, 음성은 (B, K, D) 와 (B, D) 의 배치 행렬곱입니다.
-        # HINT 2: torch.bmm 에 v 를 (B, D, 1) 로 늘려 넣으면 (B, K, 1). F.logsigmoid
-        # WHY: softmax 는 단어마다 어휘 V 개 전부를 계산해야 합니다(O(V)). 음성 샘플링은 "진짜 문맥 vs 무작위 K 개" 이진 분류라 O(K) 입니다.
-        #      log(sigmoid(x)) 를 나눠 계산하면 x 가 큰 음수일 때 log(0) = -inf 가 됩니다.
-        # REF: Mikolov et al., 2013b, §2.2 (식 4)
-        raise NotImplementedError("TODO 7")
+        # TODO 7  REF: Mikolov et al., 2013b, §2.2 (식 4)
+        v = self.in_embed(center)          # (B, D)
+        u_pos = self.out_embed(context)    # (B, D)
+        u_neg = self.out_embed(negatives)  # (B, K, D)
+        pos_score = (v * u_pos).sum(-1)                              # (B,)
+        neg_score = torch.bmm(u_neg, v.unsqueeze(-1)).squeeze(-1)    # (B, K, D) @ (B, D, 1) -> (B, K)
+        # 왜 음성 샘플링: softmax 는 분모에 어휘 V 개 전부의 exp(u_w·v_c) 합이 필요해 단어 하나마다 O(V) 계산이다.
+        # 대신 "진짜 문맥(1) vs 무작위 단어 K 개(0)" 이진 분류로 바꾸면 O(K) (K=5~20) 로 줄어든다.
+        # 왜 logsigmoid: log(sigmoid(x)) 를 나눠 계산하면 x 가 큰 음수일 때 log(0) = -inf 가 된다.
+        loss = -(F.logsigmoid(pos_score) + F.logsigmoid(-neg_score).sum(-1))  # (B,)
+        return loss.mean()
 
 
 class CBOWSoftmax(nn.Module):
@@ -169,21 +181,23 @@ class CBOWSoftmax(nn.Module):
     def __init__(self, vocab_size: int, dim: int):
         super().__init__()
         self.pad_id = vocab_size  # 실제 단어 id 는 0..V-1, 패딩은 V
-        # TODO 8: self.embed (V+1 행, 마지막 행 = 패딩, padding_idx 지정) 와 bias 없는 출력층 self.out (D -> V) 을 만드세요.
-        # HINT 1: 패딩 id 는 self.pad_id (= V) 입니다. 패딩은 예측 대상이 아니므로 출력은 V 개입니다.
-        # HINT 2: nn.Embedding(..., padding_idx=...), nn.Linear(..., bias=False)
-        # WHY: padding_idx 를 지정하면 패딩 벡터가 0 으로 고정되고 학습되지 않아, 평균에 섞여도 값을 오염시키지 않습니다.
-        # REF: Mikolov et al., 2013a, §3.1
-        raise NotImplementedError("TODO 8")
+        # TODO 8  REF: Mikolov et al., 2013a, §3.1
+        # 패딩 자리까지 V+1 행. padding_idx: 패딩 행은 0 벡터로 고정되고 학습되지 않는다(P1-02 TODO 7 과 같은 개념).
+        self.embed = nn.Embedding(vocab_size + 1, dim, padding_idx=self.pad_id)
+        # bias 없는 Linear: 가중치 (V, D) 가 "출력용 단어 벡터" 테이블 역할을 한다. 패딩은 예측 대상이 아니므로 V 개.
+        self.out = nn.Linear(dim, vocab_size, bias=False)
 
     def forward(self, contexts: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """contexts: (B, 2w) (패딩 = pad_id), target: (B,) -> 스칼라 loss"""
-        # TODO 9: 패딩을 뺀 문맥 벡터 평균 → 어휘 전체 logits → cross entropy 를 반환하세요.
-        # HINT 1: 패딩 위치를 0 으로 만드는 마스크를 곱해 합하고, 실제 문맥 수로 나눕니다(0 이면 1 로).
-        # HINT 2: (B, 2w, D) * (B, 2w, 1) → sum(dim=1) → (B, D) → self.out → (B, V), F.cross_entropy
-        # WHY: 패딩 수까지 포함해 나누면 문장 끝 단어의 문맥 벡터만 작아져 예측이 흔들립니다.
-        # REF: Mikolov et al., 2013a, §3.1
-        raise NotImplementedError("TODO 9")
+        # TODO 9  REF: Mikolov et al., 2013a, §3.1
+        mask = (contexts != self.pad_id).float().unsqueeze(-1)       # (B, 2w, 1)
+        summed = (self.embed(contexts) * mask).sum(dim=1)            # (B, D)
+        # 실제 문맥 수로 나눈 평균: 패딩까지 나누면 문장 끝 단어의 문맥 벡터가 작아져 크기가 들쭉날쭉해진다.
+        # 평균은 문맥 단어의 "순서"를 버린다 → bag-of-words(CBOW) 라는 이름이 붙은 이유.
+        h = summed / mask.sum(dim=1).clamp(min=1.0)                  # (B, D)
+        logits = self.out(h)                                         # (B, V)
+        # cross_entropy = log_softmax + NLL 을 수치적으로 안정되게 한 번에. V 가 수십만이면 이 줄이 병목 → 음성 샘플링.
+        return F.cross_entropy(logits, target)
 
 
 def get_device() -> torch.device:
@@ -199,11 +213,13 @@ def skipgram_batch_loss(
     device: torch.device,
 ) -> torch.Tensor:
     """(center, context) 쌍 목록 하나를 텐서로 바꾸고 음성 샘플을 뽑아 loss 를 계산한다."""
-    # TODO 10: batch 의 (center, context) 를 각각 (B,) 텐서로 만들고, 음성 샘플 (B, K) 를 뽑아 model 의 loss 를 반환하세요.
-    # HINT 1: 텐서는 device 위에 만들고, 음성 샘플은 CPU generator 로 뽑은 뒤 device 로 옮깁니다.
-    # HINT 2: torch.tensor([...], device=device), TODO 5 의 sample_negatives, Tensor.to(device)
-    # WHY: 음성 샘플을 배치마다 새로 뽑지 않으면 같은 단어들만 계속 밀어내는 편향이 생깁니다.
-    raise NotImplementedError("TODO 10")
+    # TODO 10
+    center = torch.tensor([c for c, _ in batch], device=device)   # (B,)
+    context = torch.tensor([o for _, o in batch], device=device)  # (B,)
+    # 음성 샘플은 배치마다 새로 뽑는다: 같은 음성 단어만 계속 쓰면 그 단어들만 밀어내는 편향이 생긴다.
+    # generator 는 CPU 에서 뽑고 device 로 옮긴다(재현성: 같은 seed → 같은 음성 샘플).
+    neg = sample_negatives(noise, len(batch), negatives, generator=generator).to(device)  # (B, K)
+    return model(center, context, neg)
 
 
 # ---------------------------------------------------------------------------
@@ -285,12 +301,13 @@ def train_word2vec(
 # ---------------------------------------------------------------------------
 def nearest(word: str, result: dict, k: int = 3, vectors: torch.Tensor | None = None) -> list[tuple[str, float]]:
     """학습된(또는 주어진) 단어 벡터에서 코사인 최근접 단어 k 개 (자기 자신 제외)."""
-    # TODO 11: (vectors 가 주어지면 그것, 아니면 result["vectors"]) 에서 word 와 코사인 유사도가 높은 순서로
-    #          k 개 [(단어, 유사도), ...] 를 반환하세요. 자기 자신은 제외합니다.
-    # HINT 1: 모든 벡터를 길이 1 로 정규화하면 내적이 곧 코사인 유사도입니다.
-    # HINT 2: F.normalize(..., dim=-1), 행렬-벡터 곱 → (V,), 자기 위치를 -2 로, torch.topk
-    # WHY: P1-02 와 같은 코사인 top-k 입니다. 학습 전후 이웃을 비교해 "주변이 비슷한 단어끼리 가까워졌는지" 확인합니다.
-    raise NotImplementedError("TODO 11")
+    # TODO 11
+    vecs = F.normalize(result["vectors"] if vectors is None else vectors, dim=-1)  # (V, D), 길이 1
+    idx = result["word_to_id"][word]
+    sims = vecs @ vecs[idx]   # (V,) 코사인 유사도 — 길이를 지우고 방향만 비교(P1-02 TODO 5)
+    sims[idx] = -2.0          # 자기 자신 제외(코사인 최솟값 -1 보다 작게)
+    values, ids = torch.topk(sims, k)
+    return [(result["id_to_word"][i], float(v)) for v, i in zip(values, ids, strict=True)]
 
 
 def cosine(word_a: str, word_b: str, result: dict, vectors: torch.Tensor | None = None) -> float:
@@ -343,8 +360,8 @@ def _report_progress() -> None:
             print(f"[미구현] {name}")
     if remaining:
         print(f"\n남은 TODO {remaining}개 — 위에서부터 순서대로 채우세요(뒤 TODO 는 앞 TODO 를 사용합니다). 채운 뒤 검사:")
-        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/word2vec")
-        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/word2vec; Remove-Item Env:IMPL')
+        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/word2vec/advanced")
+        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/word2vec/advanced; Remove-Item Env:IMPL')
     else:
         print("\n모든 TODO 가 구현되었습니다. 이제 pytest 로 정답 여부를 확인하세요.")
 

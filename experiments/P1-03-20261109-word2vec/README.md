@@ -1,5 +1,7 @@
 # P1-03 Word2Vec — 실행 기록
 
+> 이 기록은 **심화 실습(선택 과제 `part1_ai_fundamentals/word2vec/advanced/`)** 의 실행 결과다. 2026-11-09 방향 전환으로 기존 실습이 `advanced/`로 옮겨졌고, 메인 실습 기록은 별도 디렉터리에 남긴다.
+
 - 실습 ID: P1-03
 - 날짜: 2026-11-09
 - 실행 위치: 클라우드 작업 환경(CPU). GPU 수치는 **사용자 PC에서 측정 필요**
@@ -41,7 +43,7 @@
 | Skip-gram | 0.58~0.68s | 0.10s |
 | CBOW | 0.19~0.21s | 0.08s |
 
-`pytest part1_ai_fundamentals/word2vec`: 6.30s (17 passed). 실행마다 시간이 조금씩 다르다.
+`pytest part1_ai_fundamentals/word2vec/advanced`: 6.30s (17 passed). 실행마다 시간이 조금씩 다르다.
 
 ## 결과
 

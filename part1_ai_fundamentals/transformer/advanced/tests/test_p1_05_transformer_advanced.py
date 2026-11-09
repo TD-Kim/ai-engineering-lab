@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch import nn
 
 LAB_DIR = Path(__file__).resolve().parents[1]
-CORPUS = LAB_DIR.parent / "data" / "corpus_ko_en.txt"
+CORPUS = LAB_DIR.parents[1] / "data" / "corpus_ko_en.txt"
 CPU = torch.device("cpu")
 
 

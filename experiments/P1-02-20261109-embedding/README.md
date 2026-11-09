@@ -1,5 +1,7 @@
 # P1-02 Embedding — 실행 기록
 
+> 이 기록은 **심화 실습(선택 과제 `part1_ai_fundamentals/embedding/advanced/`)** 의 실행 결과다. 2026-11-09 방향 전환으로 기존 실습이 `advanced/`로 옮겨졌고, 메인 실습 기록은 별도 디렉터리에 남긴다.
+
 - 실습 ID: P1-02
 - 날짜: 2026-11-09
 - 실행 위치: 클라우드 작업 환경(CPU). GPU·사전학습 비교 수치는 **사용자 PC에서 측정 필요**
@@ -46,7 +48,7 @@
 | 항목 | CPU (이 기록) | RTX 3070 |
 |---|---|---|
 | `run_demo.py` 학습 300 steps | 0.20s | 사용자 PC에서 측정 필요 |
-| `pytest part1_ai_fundamentals/embedding` | 1.55s | 사용자 PC에서 측정 필요 |
+| `pytest part1_ai_fundamentals/embedding/advanced` | 1.55s | 사용자 PC에서 측정 필요 |
 
 ## 결과
 
@@ -62,7 +64,7 @@ pytest: solution `12 passed, 1 skipped`, starter(빈 상태) `13 skipped`. skip 
 
 - loss: 6.0347 → 0.5645. 시작값은 무작위 예측 수준인 `ln 365 ≈ 5.90` 근처다.
 - 학습 후 PCA 좌표 (PC1, PC2): cat (-2.57, 0.46), dog (-1.14, 0.61), the (2.13, 1.64), loss (-1.54, 0.23), model (-2.22, -1.27)
-- 그림 `part1_ai_fundamentals/embedding/outputs/pca_{before,after}.png`는 커밋하지 않는다(`.gitignore`).
+- 그림 `part1_ai_fundamentals/embedding/advanced/outputs/pca_{before,after}.png`는 커밋하지 않는다(`.gitignore`).
 
 사전학습 임베딩 비교(`compare_pretrained.py`): **이 환경에서는 실행하지 않음**(건너뜀). 사용자 PC 결과를 아래에 채운다.
 측정 조건: multilingual-e5 계열은 양쪽 문장에 `query: ` 접두어를 붙인다(대칭 작업에 대한 모델 카드 권장. 원문은 작성 환경에서 재확인하지 못함). 접두어 없이 잰 경우 `--prefix ""`로 따로 기록한다.

@@ -1,5 +1,7 @@
 # P1-05 Transformer — 실행 기록
 
+> 이 기록은 **심화 실습(선택 과제 `part1_ai_fundamentals/transformer/advanced/`)** 의 실행 결과다. 2026-11-09 방향 전환으로 기존 실습이 `advanced/`로 옮겨졌고, 메인 실습 기록은 별도 디렉터리에 남긴다.
+
 - 실습 ID: P1-05 (P1-05a 부품, P1-05b 미니 언어모델)
 - 날짜: 2026-11-09
 - 실행 위치: 클라우드 작업 환경(CPU). GPU 수치는 **사용자 PC에서 측정 필요**
@@ -62,7 +64,7 @@
 | 항목 | CPU (이 기록) | RTX 3070 |
 |---|---|---|
 | `train_tiny.py` 300 steps | 4.40s | 사용자 PC에서 측정 필요 |
-| `pytest part1_ai_fundamentals/transformer` | 2.32s (22 passed) | 사용자 PC에서 측정 필요 |
+| `pytest part1_ai_fundamentals/transformer/advanced` | 2.32s (22 passed) | 사용자 PC에서 측정 필요 |
 
 ## 결과
 
@@ -101,7 +103,7 @@
   - layer 1: 0.14~0.29
   - 이전 버전(0.10~0.29)보다 layer 0 head 1·2가 높다. 그림에서도 대각선 바로 아래가 밝다.
 - layer 0 head 0은 여러 query가 `c`(위치 4)에 몰린다. 의미는 단정하지 않는다.
-- 그림 `part1_ai_fundamentals/transformer/outputs/attention_layer{0,1}.png`는 커밋하지 않는다.
+- 그림 `part1_ai_fundamentals/transformer/advanced/outputs/attention_layer{0,1}.png`는 커밋하지 않는다.
 
 ### 테스트
 pytest: solution `22 passed`, starter(빈 상태) `22 skipped`. 위치 인코딩 사용, 임베딩 크기, finfo.min 마스킹(NaN 없음) 테스트가 추가되었다.

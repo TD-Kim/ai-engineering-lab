@@ -119,7 +119,7 @@ flowchart LR
 - **메인 실습은 개념은 깊게, 구현은 얕게.** 라이브러리·API를 쓰고, 손 미분·학습 루프 직접 작성 같은 원리 구현은 `advanced/`(선택 과제)에 둔다. `advanced/`는 메인과 같은 규약(starter/solution/tests)을 따른다.
 - 외부 API(Claude, OpenAI)를 부르는 코드는 **테스트에서 모킹**한다. 실제 호출 스크립트는 사용자 PC에서 실행하며, 결과를 지어내 README에 쓰지 않는다.
 - Windows에서 DataLoader(`num_workers > 0`)를 쓰는 스크립트는 반드시 `if __name__ == "__main__":` 아래에서 실행한다.
-- 난이도 표시: `starter.py`/`solution.py` 상단 docstring에 Level별 TODO 범위를 적는다. 예([transformer/advanced/solution.py](../part1_ai_fundamentals/transformer/solution.py)):
+- 난이도 표시: `starter.py`/`solution.py` 상단 docstring에 Level별 TODO 범위를 적는다. 예([transformer/advanced/solution.py](../part1_ai_fundamentals/transformer/advanced/solution.py)):
 
   ```text
   Level 1: Q/K/V 선형 층, 스케일드 닷-프로덕트 어텐션, causal·padding 마스크 (TODO 1~10, SelfAttention)
@@ -203,7 +203,7 @@ def test_qkv_projections_shapes(impl):
 
 ### 예시: Scaled Dot-Product Self-Attention (TODO 7~9)
 
-[part1_ai_fundamentals/transformer/advanced](../part1_ai_fundamentals/transformer/README.md)의 `SelfAttention.forward`에서 발췌한 것입니다.
+[part1_ai_fundamentals/transformer/advanced](../part1_ai_fundamentals/transformer/advanced/README.md)의 `SelfAttention.forward`에서 발췌한 것입니다.
 마스크 규약은 bool이며 **True(1) = 볼 수 있음, False(0) = 가림**입니다(`padding_mask`는 1 = 실제 토큰, 0 = 패딩).
 한 query 행의 key가 전부 가려지면 softmax(−∞, …) = NaN이 됩니다. 이 문제와 해결법은 transformer README 9절에 있고, 테스트 `test_fully_masked_row_gives_nan`이 재현합니다.
 

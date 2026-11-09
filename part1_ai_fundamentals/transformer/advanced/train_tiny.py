@@ -1,12 +1,12 @@
 """P1-05 Level 3: 작은 Transformer 문자 단위 언어모델을 data/corpus_ko_en.txt 로 학습한다.
 
 사용법:
-    python part1_ai_fundamentals/transformer/train_tiny.py --impl solution
-    python part1_ai_fundamentals/transformer/train_tiny.py --impl starter --steps 300
+    python part1_ai_fundamentals/transformer/advanced/train_tiny.py --impl solution
+    python part1_ai_fundamentals/transformer/advanced/train_tiny.py --impl starter --steps 300
 
 - 앞 90% 로 학습, 뒤 10% 로 검증 손실(같은 위치로 고정 평가). 시드 0 고정.
 - 손실 곡선 요약, 파라미터 수, 학습 시간, 생성 예시를 출력하고,
-  체크포인트를 part1_ai_fundamentals/transformer/outputs/tiny_lm.pt 로 저장한다(state_dict, 커밋하지 않음).
+  체크포인트를 part1_ai_fundamentals/transformer/advanced/outputs/tiny_lm.pt 로 저장한다(state_dict, 커밋하지 않음).
   visualize_attention.py 가 이 파일을 쓴다.
 - GPU 가 있으면 자동으로 cuda 를 쓴다. CPU 에서도 300 step 이 수 초 걸린다.
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 import torch
 
 LAB_DIR = Path(__file__).resolve().parent
-CORPUS = LAB_DIR.parent / "data" / "corpus_ko_en.txt"
+CORPUS = LAB_DIR.parents[1] / "data" / "corpus_ko_en.txt"
 CHECKPOINT = LAB_DIR / "outputs" / "tiny_lm.pt"
 
 
@@ -62,11 +62,11 @@ def main() -> None:
 
     CHECKPOINT.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"state_dict": model.state_dict(), "chars": vocab.chars, "config": vars(args)}, CHECKPOINT)
-    print(f"[saved] {CHECKPOINT.relative_to(LAB_DIR.parent.parent)}")
+    print(f"[saved] {CHECKPOINT.relative_to(LAB_DIR.parents[2])}")
 
 
 if __name__ == "__main__":
     try:
         main()
     except NotImplementedError as exc:
-        print(f"[미구현] {exc} — starter.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/transformer/starter.py 로 확인)")
+        print(f"[미구현] {exc} — starter.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/transformer/advanced/starter.py 로 확인)")

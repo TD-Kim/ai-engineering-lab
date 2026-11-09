@@ -1,7 +1,7 @@
 """P1-03 Level 3: 직접 구현한 Word2Vec 과 gensim Word2Vec 을 같은 말뭉치·같은 하이퍼파라미터로 비교한다.
 
 사용법:
-    python part1_ai_fundamentals/word2vec/compare_with_gensim.py --impl solution
+    python part1_ai_fundamentals/word2vec/advanced/compare_with_gensim.py --impl solution
 
 비교 대상
 1. data/corpus_ko_en.txt (저장소 말뭉치): cat–dog 같은 "같은 문장 구조" 단어 쌍의 코사인, cat 의 최근접 이웃

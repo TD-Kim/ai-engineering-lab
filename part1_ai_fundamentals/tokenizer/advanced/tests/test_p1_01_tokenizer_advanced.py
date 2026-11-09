@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 LAB_DIR = Path(__file__).resolve().parents[1]
-CORPUS = LAB_DIR.parent / "data" / "corpus_ko_en.txt"
+CORPUS = LAB_DIR.parents[1] / "data" / "corpus_ko_en.txt"
 # Sennrich et al. (2016) §3.2 Algorithm 1 의 예시 어휘 (논문 원문 병합 목록과의 대조는 미확인)
 TOY = "low " * 5 + "lower " * 2 + "newest " * 6 + "widest " * 3
 

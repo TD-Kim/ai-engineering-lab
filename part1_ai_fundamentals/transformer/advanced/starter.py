@@ -7,8 +7,8 @@ Level 3: 문자 단위 미니 언어모델 조립·학습·생성 (TODO 20~23)
          → train_tiny.py(학습·손실 곡선), visualize_attention.py(어텐션 가중치 그림),
            compare_with_torch.py(nn.MultiheadAttention / F.scaled_dot_product_attention 과 같은 가중치로 비교)
 
-진행 확인: python part1_ai_fundamentals/transformer/starter.py   (남은 TODO 목록 출력)
-검사:     IMPL=starter pytest part1_ai_fundamentals/transformer
+진행 확인: python part1_ai_fundamentals/transformer/advanced/starter.py   (남은 TODO 목록 출력)
+검사:     IMPL=starter pytest part1_ai_fundamentals/transformer/advanced
 
 마스크 규약: bool 텐서, True(1) = "볼 수 있음(attend)", False(0) = "가림".
   - padding_mask: (B, T), 1 = 실제 토큰, 0 = 패딩 (P1-01 tokenizer 의 attention_mask 와 같은 뜻)
@@ -421,8 +421,8 @@ def _report_progress() -> None:
             print(f"[미구현] {name}  ← 처음 막힌 곳: {exc}")
     if remaining:
         print(f"\n남은 항목 {remaining}개 — 위에서부터 순서대로 채우세요(뒤 TODO 는 앞 TODO 를 사용합니다). 채운 뒤 검사:")
-        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/transformer")
-        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/transformer; Remove-Item Env:IMPL')
+        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/transformer/advanced")
+        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/transformer/advanced; Remove-Item Env:IMPL')
     else:
         print("\n모든 TODO 가 구현되었습니다. 이제 pytest 로 정답 여부를 확인하세요.")
 

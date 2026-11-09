@@ -1,8 +1,8 @@
 """P1-05 Level 3: 학습된 미니 언어모델의 어텐션 가중치를 그림으로 본다.
 
 사용법 (먼저 train_tiny.py 로 체크포인트를 만든다):
-    python part1_ai_fundamentals/transformer/train_tiny.py --impl solution
-    python part1_ai_fundamentals/transformer/visualize_attention.py --impl solution --text "the cat sat on the mat"
+    python part1_ai_fundamentals/transformer/advanced/train_tiny.py --impl solution
+    python part1_ai_fundamentals/transformer/advanced/visualize_attention.py --impl solution --text "the cat sat on the mat"
 
 - 각 층의 head 별 (T, T) 가중치를 heatmap 으로 저장: outputs/attention_layer{L}.png (커밋하지 않음)
 - matplotlib 이 없으면 그림은 건너뛰고, 각 query 가 가장 많이 본 key(글자)를 텍스트로만 출력한다.
@@ -66,7 +66,7 @@ def save_heatmaps(maps, chars: list[str], out_dir: Path) -> list[str]:
         path = out_dir / f"attention_layer{layer}.png"
         fig.savefig(path, dpi=120)
         plt.close(fig)
-        paths.append(str(path.relative_to(LAB_DIR.parent.parent)))
+        paths.append(str(path.relative_to(LAB_DIR.parents[2])))
     return paths
 
 

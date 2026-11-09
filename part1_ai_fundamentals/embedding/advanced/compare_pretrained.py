@@ -1,7 +1,7 @@
 """P1-02 Level 3 (선택): 사전학습 문장 임베딩과 "토큰 벡터 평균" 문장 벡터를 비교한다.
 
 사용법:
-    python part1_ai_fundamentals/embedding/compare_pretrained.py --impl solution
+    python part1_ai_fundamentals/embedding/advanced/compare_pretrained.py --impl solution
     (모델 지정) $env:LOCAL_EMBEDDING_MODEL = "intfloat/multilingual-e5-small"   # PowerShell
 
 - `sentence-transformers` 가 설치되어 있고 모델 파일이 로컬(HF 캐시 또는 경로)에 있을 때만 실행한다.

@@ -1,12 +1,12 @@
 """P1-02 데모: 작은 "다음 단어 맞히기" 모델로 임베딩을 학습하고, 학습 전후의 최근접 이웃과 PCA 2차원 그림을 비교한다.
 
 사용법:
-    python part1_ai_fundamentals/embedding/run_demo.py --impl solution
-    python part1_ai_fundamentals/embedding/run_demo.py --impl starter --steps 300
+    python part1_ai_fundamentals/embedding/advanced/run_demo.py --impl solution
+    python part1_ai_fundamentals/embedding/advanced/run_demo.py --impl starter --steps 300
 
 - 데이터: part1_ai_fundamentals/data/corpus_ko_en.txt (공백 기준 단어, 같은 줄 안의 (현재 단어 → 다음 단어) 쌍)
 - 모델: 직접 구현한 EmbeddingLayer(V, D) → nn.Linear(D, V) → cross entropy
-- 그림: part1_ai_fundamentals/embedding/outputs/pca_before.png, pca_after.png (outputs/ 는 커밋하지 않음)
+- 그림: part1_ai_fundamentals/embedding/advanced/outputs/pca_before.png, pca_after.png (outputs/ 는 커밋하지 않음)
   matplotlib 이 없으면 그림만 건너뛴다.
 
 주의: 말뭉치가 매우 작아(단어 504개) 의미 있는 단어 관계를 기대하기 어렵다. 여기서 보는 것은
@@ -27,7 +27,7 @@ import torch.nn.functional as F
 from torch import nn
 
 LAB_DIR = Path(__file__).resolve().parent
-CORPUS = LAB_DIR.parent / "data" / "corpus_ko_en.txt"
+CORPUS = LAB_DIR.parents[1] / "data" / "corpus_ko_en.txt"
 PROBE_WORDS = ["cat", "dog", "the", "loss", "model"]
 
 
@@ -69,7 +69,7 @@ def save_pca(impl, table, vocab, path: Path, title: str) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=120, bbox_inches="tight")
     plt.close(fig)
-    return str(path.relative_to(LAB_DIR.parent.parent))
+    return str(path.relative_to(LAB_DIR.parents[2]))
 
 
 def main() -> None:
@@ -121,4 +121,4 @@ if __name__ == "__main__":
     try:
         main()
     except NotImplementedError as exc:
-        print(f"[미구현] {exc} — starter.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/embedding/starter.py 로 확인)")
+        print(f"[미구현] {exc} — starter.py 의 TODO 를 먼저 채우세요 (python part1_ai_fundamentals/embedding/advanced/starter.py 로 확인)")

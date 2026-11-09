@@ -104,17 +104,68 @@ flowchart LR
 
 - TODO 번호는 **디렉터리 안에서 연속**으로 매긴다(여러 파일이어도 겹치지 않게).
 - Windows에서 DataLoader(`num_workers > 0`)를 쓰는 스크립트는 반드시 `if __name__ == "__main__":` 아래에서 실행한다.
-- 난이도 표시: 파일 상단 docstring에 `Level: 1|2|3`.
+- 난이도 표시: `starter.py`/`solution.py` 상단 docstring에 Level별 TODO 범위를 적는다. 예([transformer/solution.py](../part1_ai_fundamentals/transformer/solution.py)):
 
-테스트 전환 방식(예시):
+  ```text
+  Level 1: Q/K/V 선형 층, 스케일드 닷-프로덕트 어텐션, causal·padding 마스크 (TODO 1~10, SelfAttention)
+  Level 2: Multi-Head Attention(헤드 분할·합치기), Feed Forward, 위치 인코딩(sinusoidal),
+           Residual + LayerNorm 으로 Encoder 블록 조립 (TODO 11~19)
+  Level 3: 문자 단위 미니 언어모델 조립·학습·생성 (TODO 20~23)
+  ```
+
+- `starter.py`는 단독 실행(`python <실습>/starter.py`)하면 `[미구현] TODO n` 목록을 출력한다.
+- 테스트 파일명은 실습별로 고유하게 짓는다: `tests/test_p1_05_transformer.py`. 여러 실습에 같은 이름(`test_model.py` 등)이 있으면 루트에서 `pytest`를 실행할 때 충돌한다.
+
+### 테스트 전환 방식 (starter ↔ solution)
+
+실습마다 `starter.py`/`solution.py`라는 **같은 파일 이름**을 쓰므로 `import solution`으로 불러오면 안 됩니다.
+그렇게 하면 루트에서 `pytest`를 실행할 때 `sys.modules` 캐시 때문에 **다른 실습의 solution이 불려올 수 있습니다.**
+그래서 두 가지로 이 문제를 막습니다.
+- `part1_ai_fundamentals/conftest.py`의 `impl` 픽스처가 **파일 경로 기준**으로, **고유한 모듈 이름**(`part1_<실습 디렉터리>_<impl>`)을 붙여 불러옵니다.
+- 루트 `pytest.ini`가 `--import-mode=importlib`를 켭니다.
+
+```ini
+# pytest.ini (저장소 루트)
+[pytest]
+addopts = --import-mode=importlib -q
+testpaths = part1_ai_fundamentals tests
+```
 
 ```python
-# test_attention.py
-import importlib
-import os
+# part1_ai_fundamentals/conftest.py (요지)
+import importlib.util, os, sys
+from pathlib import Path
+import pytest
 
-impl = importlib.import_module(os.environ.get("IMPL", "solution"))  # IMPL=starter pytest
+
+def load_module(path: Path, module_name: str):
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module  # dataclass 등이 모듈을 찾을 수 있게 먼저 등록
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="module")
+def impl(request):
+    name = os.environ.get("IMPL", "solution")                      # IMPL=starter pytest ...
+    lab_dir = Path(request.path).resolve().parent.parent           # <실습>/tests/test_*.py → <실습>/
+    return load_module(lab_dir / f"{name}.py", f"part1_{lab_dir.name}_{name}")
 ```
+
+```python
+# <실습>/tests/test_p1_05_transformer.py — 테스트는 impl 픽스처만 받는다
+def test_qkv_projections_shapes(impl):
+    sa = impl.SelfAttention(8, d_k=4)
+    ...
+```
+
+- 실행:
+  - bash: `IMPL=starter pytest part1_ai_fundamentals/transformer`
+  - PowerShell: `$env:IMPL="starter"; pytest part1_ai_fundamentals/transformer; Remove-Item Env:IMPL`
+- `conftest.py`는 starter에서 `NotImplementedError`가 나면 실패 대신 **`skipped`(TODO 미구현: TODO n)** 로 보고합니다(`pytest_runtest_makereport` hook).
 
 ## 4. 힌트 주석 규약과 예시
 

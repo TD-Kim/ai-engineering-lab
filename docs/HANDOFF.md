@@ -11,7 +11,7 @@
 | ② | P1-01 tokenizer | **완료(③ PASS_WITH_NOTES, 수정 반영·재검증 대기)** | Level 1(TODO 1~5: tokenize·Vocab·특수 토큰·pad/truncate), Level 2(TODO 6~10: BPE), Level 3(compare_with_hf.py). 테스트 15개 통과(solution) / starter 15 skip (TODO 8 동점·TODO 9 rank 순서 검사 포함). README 12항목, experiments/P1-01-20261109-bpe |
 | ③ | P1-02 embedding | **완료(검증 대기)** | Level 1(TODO 1~6: 조회·one-hot 동치·L2·코사인·문장 벡터), Level 2(TODO 7~11: EmbeddingLayer+padding_idx, 학습형 위치 임베딩, top-k), Level 3(TODO 12 PCA, nn.Embedding 비교, run_demo.py, compare_pretrained.py 선택). solution 12 passed + 1 skipped(사전학습 비교, sentence-transformers 미설치) / starter 13 skip. README 12항목, experiments/P1-02-20261109-embedding |
 | ④ | P1-03 word2vec | **완료(검증 대기)** | Level 1(TODO 1~3: 어휘, Skip-gram 쌍, CBOW 예제 패딩), Level 2(TODO 4~10: count^0.75 잡음 분포, 음성 샘플, Skip-gram NS, CBOW 마스크 평균, 배치 loss), Level 3(TODO 11 최근접, run_demo.py 전후 비교, compare_with_gensim.py). **CBOW 실패 해결**(양쪽 문맥만 쓰던 예제 → 모든 위치 + 패딩·마스크, 순도 0.33→0.86). solution 17 passed / starter 17 skipped (generator·사전순 동점·logsigmoid 변이 검사 포함). README 12항목, experiments/P1-03-20261109-word2vec |
-| ⑤ | P1-05 transformer | **완료(검증 대기)** | Level 1(TODO 1~10: Q/K/V, 스케일드 닷-프로덕트, causal·padding 마스크), Level 2(TODO 11~19: MHA, FFN, 사인/코사인 PE, Pre-LN 블록=EncoderBlock), Level 3(TODO 20~23: 문자 LM, train_tiny.py·visualize_attention.py·compare_with_torch.py). solution 21 passed / starter 21 skip. 전체 NaN 재현, 위치 인코딩 사용, 임베딩 크기(std D^-0.5 × √D) 테스트 포함. README 12항목, experiments/P1-05-20261109-transformer |
+| ⑤ | P1-05 transformer | **완료(검증 대기)** | Level 1(TODO 1~10: Q/K/V, 스케일드 닷-프로덕트, causal·padding 마스크), Level 2(TODO 11~19: MHA, FFN, 사인/코사인 PE, Pre-LN 블록=EncoderBlock), Level 3(TODO 20~23: 문자 LM, train_tiny.py·visualize_attention.py·compare_with_torch.py). solution 22 passed / starter 22 skipped. 전체 NaN 재현, 위치 인코딩 사용, 임베딩 크기(std D^-0.5 × √D), finfo.min 마스킹 테스트 포함. README 12항목, experiments/P1-05-20261109-transformer |
 
 `docs/PROGRESS.md`의 Part 1 항목은 모두 `NOT_STARTED`로 유지한다. 학습자가 직접 확인해야 `COMPLETED`가 된다.
 
@@ -21,7 +21,7 @@
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 루트 `pytest.ini`: `--import-mode=importlib`.
 - 테스트 파일명은 실습별로 고유하게 짓는다. pytorch(`test_p1_04_pytorch.py`), tokenizer(`test_p1_01_tokenizer.py`), embedding(`test_p1_02_embedding.py`), word2vec(`test_p1_03_word2vec.py`), transformer(`test_p1_05_transformer.py`) — Part 1 전체 적용 완료.
-- 루트에서 `pytest` 한 번으로 실습들이 섞이지 않고 실행된다(P1-05 반영 후 75 passed, 1 skipped — skip 은 P1-02 사전학습 비교, sentence-transformers 미설치).
+- 루트에서 `pytest` 한 번으로 실습들이 섞이지 않고 실행된다(P1-05 반영 후 76 passed, 1 skipped — skip 은 P1-02 사전학습 비교, sentence-transformers 미설치).
 - starter를 단독 실행하면(`python <실습>/starter.py`) 남은 TODO 목록이 나온다. Part 1 다섯 실습 모두 적용했다.
 
 ## 환경 메모

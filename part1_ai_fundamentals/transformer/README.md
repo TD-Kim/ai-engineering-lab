@@ -239,18 +239,18 @@ REF는 다음 출처만 씁니다.
 `pytest part1_ai_fundamentals/transformer -rs` (solution)
 
 ```text
-.....................                                                    [100%]
-21 passed in 2.98s
+......................                                                   [100%]
+22 passed in 2.32s
 ```
 
 `IMPL=starter pytest part1_ai_fundamentals/transformer -rs` (아무것도 채우지 않은 상태, 앞부분)
 
 ```text
-sssssssssssssssssssss                                                    [100%]
+ssssssssssssssssssssss                                                   [100%]
 SKIPPED [1] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:26: TODO 미구현: TODO 1
 SKIPPED [2] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:38: TODO 미구현: TODO 1
 ...
-21 skipped in 1.43s
+22 skipped in 1.15s
 ```
 
 `python part1_ai_fundamentals/transformer/compare_with_torch.py --impl solution`
@@ -332,7 +332,7 @@ SKIPPED [2] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:38
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
-| **출력·가중치에 `nan`** (한 행 전체) | 한 query 행의 key가 전부 가려짐 → softmax(−∞, …) = NaN. 패딩만 있는 문장, 왼쪽 패딩 + causal의 첫 행 등 (테스트 `test_fully_masked_row_gives_nan`) | ① 그런 행이 생기지 않게 마스크 설계(오른쪽 패딩, 빈 문장 제거) ② −∞ 대신 큰 음수(예: `torch.finfo(dtype).min`)로 채우기 — 그 행은 균등 분포가 되어 NaN이 아님 ③ softmax 후 `torch.nan_to_num(weights, nan=0.0)`. 어떤 방법이든 그 위치의 출력은 loss에서 빼야 합니다 |
+| **출력·가중치에 `nan`** (한 행 전체) | 한 query 행의 key가 전부 가려짐 → softmax(−∞, …) = NaN. 패딩만 있는 문장, 왼쪽 패딩 + causal의 첫 행 등 (테스트 `test_fully_masked_row_gives_nan`) | ① 그런 행이 생기지 않게 마스크 설계(오른쪽 패딩, 빈 문장 제거) ② −∞ 대신 큰 음수(예: `torch.finfo(dtype).min`)로 채우기 — 그 행은 균등 분포가 되어 NaN이 아님(테스트 `test_finfo_min_fill_avoids_nan`) ③ softmax 후 `torch.nan_to_num(weights, nan=0.0)`. 어떤 방법이든 그 위치의 출력은 loss에서 빼야 합니다 |
 | 토큰 벡터가 위치 인코딩을 압도해 위치 정보가 거의 쓰이지 않음 (오류 없음) | `nn.Embedding` 기본 초기화 N(0, 1)에 ×√D → 토큰 노름 ≈ D(64) vs 위치 인코딩 노름 ≈ √(D/2)(5.66) | 토큰 임베딩을 std = D^−0.5로 초기화하고 ×√D (TODO 20·21) → 노름 ≈ √D(8). 테스트 `test_token_embedding_scale_matches_positional_encoding` |
 | 같은 글자가 반복된 입력(`aaaa`)에서 위치마다 예측이 똑같음 | 위치 인코딩 누락 — causal LM은 위치 인코딩 없이도 학습되지만(causal 마스크가 간접 단서를 줌), 내용만으로 구별되지 않는 위치는 구분하지 못함 | 위치 인코딩을 더한다(TODO 17, 21). 테스트 `test_lm_uses_position` |
 | 학습 loss가 거의 0까지 떨어지는데 생성이 엉망 | causal 마스크 누락 → 정답(다음 글자)을 보고 맞힘 | `tril` 마스크, 언어모델은 모든 블록에서 `causal=True` |

@@ -88,6 +88,21 @@ def test_fully_masked_row_gives_nan(impl):
     assert not torch.isnan(out[0]).any()  # 다른 문장은 영향 없음
 
 
+def test_finfo_min_fill_avoids_nan(impl):
+    """README 9절 해결법 ②: -inf 대신 dtype 의 가장 작은 유한값으로 채우면 전부 가려진 행도 NaN 이 아니다(균등 분포)."""
+    sa = impl.SelfAttention(8).eval()
+    x = _x()
+    q, k = sa.W_q(x), sa.W_k(x)
+    scores = q @ k.transpose(-2, -1) / math.sqrt(sa.d_k)
+    mask = torch.tensor([[1, 1, 1, 1, 1], [0, 0, 0, 0, 0]], dtype=torch.bool)[:, None, :]  # (B, 1, T)
+    filled = scores.masked_fill(~mask, torch.finfo(scores.dtype).min)
+    weights = torch.softmax(filled, dim=-1)
+    assert not torch.isnan(weights).any()
+    torch.testing.assert_close(weights[1], torch.full((5, 5), 0.2))  # 전부 가려진 문장: 균등 분포
+    _, ref = sa(x, padding_mask=mask[:, 0].long())
+    torch.testing.assert_close(weights[0], ref[0])  # 일부만 가려진 문장은 -inf 방식과 같은 결과
+
+
 # ----- Level 2: Multi-Head, FFN, 위치 인코딩, Residual + LayerNorm -----
 def test_mha_split_heads_and_divisibility(impl):
     mha = impl.MultiHeadAttention(8, 2)

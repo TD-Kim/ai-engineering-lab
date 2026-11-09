@@ -62,7 +62,7 @@
 | 항목 | CPU (이 기록) | RTX 3070 |
 |---|---|---|
 | `train_tiny.py` 300 steps | 4.40s | 사용자 PC에서 측정 필요 |
-| `pytest part1_ai_fundamentals/transformer` | 2.98s (21 passed) | 사용자 PC에서 측정 필요 |
+| `pytest part1_ai_fundamentals/transformer` | 2.32s (22 passed) | 사용자 PC에서 측정 필요 |
 
 ## 결과
 
@@ -104,7 +104,7 @@
 - 그림 `part1_ai_fundamentals/transformer/outputs/attention_layer{0,1}.png`는 커밋하지 않는다.
 
 ### 테스트
-pytest: solution `21 passed`, starter(빈 상태) `21 skipped`. 위치 인코딩 사용 테스트와 임베딩 크기 테스트가 추가되었다.
+pytest: solution `22 passed`, starter(빈 상태) `22 skipped`. 위치 인코딩 사용, 임베딩 크기, finfo.min 마스킹(NaN 없음) 테스트가 추가되었다.
 스크래치 변이 확인 결과, 아래 변이가 모두 하나 이상의 테스트에서 실패한다.
 - √d_k 누락
 - softmax dim 오류

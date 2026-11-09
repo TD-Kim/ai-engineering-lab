@@ -155,7 +155,7 @@ def train_model(
     model.to(device)
     torch.manual_seed(seed)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)  # noqa: F841  (TODO 10 에서 사용)
     history: list[float] = []
     for _ in range(epochs):
         total, count = 0.0, 0

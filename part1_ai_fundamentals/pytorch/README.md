@@ -4,7 +4,7 @@
 |---|---|
 | 실습 ID | P1-04 |
 | 난이도 | Level 1 → 2 → 3 |
-| 주차 | W4 (Part 1의 첫 실습. 이후 모든 실습의 선수지식) |
+| 진행 순서 | Part 1의 **첫 번째** 실습 (pytorch → tokenizer → embedding → word2vec → transformer). 로드맵 표의 주차(W4)는 Part 0 문서 정리 때 이 순서에 맞춰 고칠 예정 |
 | 예상 시간 | 3~4시간 |
 | 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p1_04_pytorch.py`, `run_demo.py` |
 
@@ -123,6 +123,7 @@ python part1_ai_fundamentals/pytorch/run_demo.py --impl solution
 
 - 테스트는 `IMPL` 환경 변수로 `starter.py`/`solution.py` 중 하나를 **파일 경로 기준**으로 불러옵니다(`part1_ai_fundamentals/conftest.py`).
 - starter에 TODO가 남아 있으면 해당 테스트는 **실패가 아니라 `skipped`(TODO 미구현)** 로 나옵니다. 정상입니다.
+- skip 사유에 나오는 TODO 번호는 **그 테스트가 의존하는 앞 TODO**입니다. 예를 들어 경사하강법 테스트는 TODO 6을 검사하지만, 안에서 TODO 4의 `mse_loss`를 먼저 부르므로 "TODO 4"로 표시됩니다.
 - GPU가 있으면 자동으로 cuda를, 없으면 cpu를 씁니다. 전체 실행은 CPU에서도 수 초면 끝납니다.
 
 ## 7. TODO 목록
@@ -141,6 +142,7 @@ python part1_ai_fundamentals/pytorch/run_demo.py --impl solution
 | 10 | 3 | `train_model` | 표준 학습 루프 (zero_grad → forward → backward → step) |
 
 각 TODO 아래의 주석 규약: `HINT 1`(방향) · `HINT 2`(shape·API) · `WHY`(왜 필요한가) · `REF`(공식 문서).
+REF 링크는 PyTorch 공식 문서 주소이며, 작성 환경에서 pytorch.org 접속이 막혀 있어 **링크가 열리는지는 아직 확인하지 못했습니다**(미확인).
 
 ## 8. 예상 결과
 

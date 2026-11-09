@@ -159,7 +159,7 @@ def train_model(
             # TODO 10  REF: https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
             # 순서가 중요: zero_grad -> forward -> loss -> backward -> step
             optimizer.zero_grad()          # 이전 배치 기울기 제거 (누적 방지)
-            loss = mse_loss(model(xb), yb)  # (B, out) vs (B, out)
+            loss = mse_loss(model(xb), yb) # (B, out) vs (B, out)
             loss.backward()                # 모든 Parameter 의 .grad 계산
             optimizer.step()               # p <- p - lr * p.grad
             total += loss.item() * xb.shape[0]

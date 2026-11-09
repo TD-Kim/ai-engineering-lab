@@ -26,17 +26,68 @@ def get_device() -> torch.device:
     # HINT 2: torch.cuda.is_available(), torch.device("...")
     # WHY: 장치를 하드코딩하면 GPU 없는 환경에서 바로 오류가 납니다. 자동 선택이 이식성을 줍니다.
     # REF: https://pytorch.org/docs/stable/notes/cuda.html
-    raise NotImplementedError("TODO 1")
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def normalize_rows(x: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
-    """각 행을 L2 노름 1로 정규화한다. x: (N, D) -> (N, D)"""
+    """
+        각 행을 L2 노름 1로 정규화한다. x: (N, D) -> (N, D)
+        위 말은 그냥 벡터의 길이를 1로 맞추는 작업 한다는얘기임.
+        1. 목표: 방향만 남기기
+                벡터에는 방향과 길이가 있습니다. 임베딩에서는 보통 방향이 의미를 담고, 길이는 방해가 되는 경우가 많습니다. 
+                그래서 모든 벡터의 길이를 1로 맞춰서 방향만 남깁니다. 예를 들어 [3, 4]와 [6, 8]은 방향이 같습니다.
+                (둘 다 같은 방향으로 뻗은 선) 길이만 다릅니다. 정규화하면 둘 다 [0.6, 0.8]이 됩니다.
+        2. L2 노름: 벡터의 길이
+                 L2 노름은 피타고라스 정리로 구하는 벡터의 길이입니다.
+                 L1 Norm은 여러 가지 path를 가지지만 L2 Norm은 Unique shortest path를 가집니다.
+        3. 입력 모양 (N, D)
+                 N: 벡터(행)의 개수
+                 D: 벡터 하나의 차원 수
+                 예를 들어 N=2, D=2이면 두 개의 2차원 벡터가 들어 있는 표입니다.
+                 x = [[3, 4],    ← 첫 번째 벡터
+                      [6, 8]]    ← 두 번째 벡터
+        4. x.norm(dim=-1, keepdim=True)
+                 dim=-1: 마지막 차원(가로 방향) 을 따라 길이를 계산하라는 뜻입니다. 각 행 안에서만 계산합니다.
+                 keepdim=True: 결과의 모양을 유지합니다.
+                 결과를 보면 차이가 보입니다.
+                 옵션	결과 모양	값
+                 keepdim=True	(2, 1)	[[5], [10]]
+                 keepdim=False	(2,)	[5, 10]
+                 두 값은 같은 숫자지만, 모양이 다릅니다. 이 모양 차이가 다음 단계에서 결과를 완전히 바꿉니다.
+        5. 나눗셈과 브로드캐스팅
+                 x / norm을 하려면 두 표의 모양이 같아야 하는데, norm은 한 칸짜리 열이라 모양이 다릅니다. 
+                 그래서 파이토치는 norm의 각 값을 오른쪽으로 복사해서 2×2로 늘립니다.
+                 서 2×2로 늘립니다.
+                 norm을 늘린 것 = [[5, 5],
+                                 [10, 10]]
+                 이제 모양이 같아졌으니 같은 자리끼리 나눕니다.
+                 [[3/5, 4/5],    = [[0.6, 0.8],
+                  [6/10, 8/10]]     [0.6, 0.8]]
+                 첫 행은 전부 5로, 둘째 행은 전부 10으로 나뉘었습니다. 그래서 각 행이 자기 길이로 나뉘게 됩니다.
+        6. keepdim을 빼면 생기는 문제 (WHY 부분)
+                 keepdim=False로 나누면 (2, 2) / (2,)가 됩니다. 브로드캐스팅은 오른쪽 끝(열 방향) 부터 맞추기 때문에, 길이 [6.71, 8.94]가 각 열을 나누는 값이 됩니다.
+                 x = [[3, 4],
+                      [6, 8]]
+                 노름(keepdim 없음) = [6.71, 8.94]    ← 행이 아니라 열 기준으로 적용됨
+                 결과 첫 행: [3/6.71, 4/8.94] ≈ [0.45, 0.45]   ← 정답은 [0.6, 0.8]
+                 오류가 나지 않습니다. 그냥 틀린 값이 나옵니다. 그래서 N == D인 경우에 특히 위험합니다. 
+                 모양이 맞아서 파이토치가 아무 경고도 하지 않기 때문입니다. 나중에 임베딩 결과가 이상한데 원인을 찾기 
+                 어려운 대표적인 버그입니다.
+        7. eps: 0으로 나누기 방지
+                 벡터가 [0, 0]처럼 모두 0이면 길이도 0입니다. 0으로 나누면 NaN(계산할 수 없는 값)이 나옵니다. 
+                 그래서 아주 작은 수 eps(예: 1e-8)를 더해서 0으로 나누는 일을 막습니다.
+        8. 이 코드가 임베딩에서 중요한 이유
+                 정규화된 두 벡터의 내적(곱해서 더한 값)은 코사인 유사도와 같아집니다. 코사인 유사도는 길이를 무시하고 방향만 비교하는 지표입니다.
+                 정규화 전: 두 벡터의 내적은 길이에 따라 크게도 작게도 나옵니다.
+                 정규화 후: 내적이 곧 방향의 유사도가 됩니다.
+    """
     # TODO 2: 각 행의 L2 노름으로 그 행을 나누세요.
     # HINT 1: 노름은 "마지막 차원" 방향으로 구하고, 나눌 때 브로드캐스팅이 행 단위로 맞아야 합니다.
     # HINT 2: Tensor.norm(dim=..., keepdim=...) → (N, 1).  0으로 나누기 방지용 eps 를 더하세요.
     # WHY: keepdim 을 빼면 (N, D) / (N,) 이 열 방향으로 맞춰져, N == D 일 때 오류 없이 틀린 값이 나옵니다.
     # REF: https://pytorch.org/docs/stable/notes/broadcasting.html
-    raise NotImplementedError("TODO 2")
+    norm = x.norm(dim=-1, keepdim=True)
+    return x / (norm + eps)
 
 
 def linear_forward(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
@@ -46,7 +97,7 @@ def linear_forward(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor) ->
     # HINT 2: 행렬곱 연산자 @ 와 전치 .T, bias 는 브로드캐스팅으로 더해집니다 → (N, out)
     # WHY: nn.Linear 내부가 정확히 이 연산임을 알면 shape 오류를 스스로 고칠 수 있습니다.
     # REF: https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
-    raise NotImplementedError("TODO 3")
+    return x @ weight.T + bias
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +110,7 @@ def mse_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     # HINT 2: 결과는 shape () 인 스칼라 텐서여야 .backward() 를 바로 호출할 수 있습니다.
     # WHY: 합 대신 평균을 쓰면 배치 크기가 바뀌어도 기울기 크기가 비슷해 학습률을 다시 고르지 않아도 됩니다.
     # REF: https://pytorch.org/docs/stable/generated/torch.nn.MSELoss.html
-    raise NotImplementedError("TODO 4")
+    return ((pred - target) ** 2).mean()
 
 
 def manual_mse_grads(
@@ -74,13 +125,18 @@ def manual_mse_grads(
     # HINT 1: 잔차 r_i = w x_i + b - y_i 를 먼저 구하면 두 기울기 모두 r 로 표현됩니다.
     # HINT 2: d(r^2)/dr = 2r,  dr/dw = x_i,  dr/db = 1,  그리고 평균의 1/N
     # WHY: 손으로 구한 값과 autograd 결과가 같다는 것을 확인하면 backward 가 하는 일을 정확히 이해하게 됩니다.
-    raise NotImplementedError("TODO 5")
+    n = x.shape[0]
+    residual = w * x + b - y
+    grad_w = 2.0 / n * (residual * x).sum()
+    grad_b = 2.0 / n * residual.sum()
+    return grad_w, grad_b
 
 
 def train_linear_regression_gd(
     x: torch.Tensor, y: torch.Tensor, lr: float = 0.1, steps: int = 200
 ) -> tuple[float, float, list[float]]:
     """autograd 로 기울기를 구해 직접 경사하강법으로 w, b 를 학습한다. 반환: (w, b, loss 기록)"""
+    # requires_grad=True는 "이 값의 기울기를 추적해 달라"는 표시입니다. 그래야 backward()가 w.grad, b.grad를 채워 줍니다.
     w = torch.zeros((), requires_grad=True)
     b = torch.zeros((), requires_grad=True)
     history: list[float] = []
@@ -92,7 +148,12 @@ def train_linear_regression_gd(
         # HINT 2: Tensor.backward(), torch.no_grad() 컨텍스트, in-place 연산(-=), Tensor.grad, Tensor.zero_()
         # WHY: .grad 는 누적됩니다. 매 step 초기화하지 않으면 이전 기울기가 더해져 발산합니다.
         # REF: https://pytorch.org/tutorials/beginner/blitz/autograd_tutorial.html
-        raise NotImplementedError("TODO 6")
+        loss.backward()
+        with torch.no_grad():
+            w -= lr * w.grad
+            b -= lr * b.grad
+        w.grad.zero_()
+        b.grad.zero_()
     return w.item(), b.item(), history
 
 
@@ -109,14 +170,22 @@ class MyLinear(nn.Module):
         # HINT 2: nn.Parameter, torch.empty(shape).uniform_(a, b) — 범위는 ±1/sqrt(in_features) (nn.Linear 기본값)
         # WHY: 일반 텐서로 두면 오류 없이 "학습이 전혀 안 되는" 버그가 생깁니다.
         # REF: https://pytorch.org/docs/stable/generated/torch.nn.parameter.Parameter.html
-        raise NotImplementedError("TODO 7")
+        bound = 1.0 / math.sqrt(in_features)
+        # nn.Linear 기본 초기화와 같은 범위 U(-1/sqrt(in), 1/sqrt(in)): 출력 분산이 입력 차원에 따라 폭주하지 않게 한다.
+        """
+            nn.Parameter는 "이 값은 학습으로 바뀌어야 하는 값입니다"라고 표시하는 래퍼입니다. 
+            이렇게 해야 parameters()에 잡혀서 옵티마이저가 갱신할 수 있습니다.
+            일반 텐서로 두면 오류 없이 학습이 전혀 안 되는 버그가 생깁니다. 이 TODO 주석의 WHY가 바로 그 경고입니다.
+        """
+        self.weight = nn.Parameter(torch.empty(out_features, in_features).uniform_(-bound, bound))
+        self.bias = nn.Parameter(torch.empty(out_features).uniform_(-bound, bound))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # TODO 8: (N, in) -> (N, out) 순전파를 구현하세요.
         # HINT 1: Level 1 에서 만든 함수를 재사용할 수 있습니다.
         # HINT 2: (N, in) -> (N, out). 필요한 weight·bias 는 TODO 7 에서 self 에 만들어 두었습니다.
         # WHY: nn.Module 의 forward 는 "연산 정의"일 뿐이고, 호출은 model(x) 로 합니다(hook 등이 함께 동작).
-        raise NotImplementedError("TODO 8")
+        return linear_forward(x, self.weight, self.bias)
 
 
 class ToyRegressionDataset(Dataset):
@@ -136,10 +205,10 @@ class ToyRegressionDataset(Dataset):
     # WHY: 배치 차원은 DataLoader 가 붙입니다. __getitem__ 에서 배치를 만들면 shape 이 한 차원 더 생깁니다.
     # REF: https://pytorch.org/docs/stable/data.html#map-style-datasets
     def __len__(self) -> int:
-        raise NotImplementedError("TODO 9")
+        return self.x.shape[0]
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-        raise NotImplementedError("TODO 9")
+        return self.x[idx], self.y[idx]
 
 
 def train_model(
@@ -167,7 +236,10 @@ def train_model(
             # WHY: zero_grad 를 빼면 이전 배치 기울기가 계속 더해집니다. step 을 backward 보다 먼저 부르면,
             #      표준 순서(zero_grad 먼저)에서는 기울기가 0(또는 None)이라 그 배치에서 파라미터가 갱신되지 않습니다.
             # REF: https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
-            raise NotImplementedError("TODO 10")
+            optimizer.zero_grad()          # 이전 배치 기울기 제거 (누적 방지)
+            loss = mse_loss(model(xb), yb) # (B, out) vs (B, out)
+            loss.backward()                # 모든 Parameter 의 .grad 계산
+            optimizer.step()               # p <- p - lr * p.grad
             total += loss.item() * xb.shape[0]  # noqa: F821
             count += xb.shape[0]
         history.append(total / count)

@@ -258,8 +258,10 @@ class MiniTransformerLM(nn.Module):
         # TODO 20: self.tok_embed(V → D), self.pos_enc(PositionalEncoding), self.blocks(TransformerBlock num_layers 개, nn.ModuleList),
         #          self.ln_f(최종 LayerNorm), self.lm_head(D → V, bias 없음) 를 만드세요.
         # HINT 1: 블록 목록은 파이썬 리스트가 아니라 모듈 리스트여야 파라미터가 등록됩니다.
-        # HINT 2: nn.Embedding, nn.ModuleList([...]), nn.LayerNorm, nn.Linear(..., bias=False)
+        #          tok_embed 는 std = d_model ** -0.5 의 정규분포로 다시 초기화하세요(TODO 21 의 ×√D 와 짝).
+        # HINT 2: nn.Embedding, nn.init.normal_(weight, std=...), nn.ModuleList([...]), nn.LayerNorm, nn.Linear(..., bias=False)
         # WHY: Pre-LN 은 마지막 블록 출력이 정규화되지 않으므로 출력층 앞에 LayerNorm 을 한 번 더 둡니다.
+        #      기본 초기화 N(0, 1) 에 ×√D 를 하면 토큰 벡터 노름(≈ D)이 위치 인코딩 노름(≈ √(D/2))을 압도해 위치 정보가 묻힙니다.
         raise NotImplementedError("TODO 20")
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:
@@ -269,7 +271,9 @@ class MiniTransformerLM(nn.Module):
         # HINT 1: 언어모델은 다음 글자를 맞히므로 모든 블록에서 미래를 가려야 합니다.
         # HINT 2: math.sqrt(self.d_model), for block in self.blocks: x = block(x, causal=True)
         # WHY: causal 을 빼면 학습 loss 는 거의 0 까지 떨어지지만(정답을 보고 맞힘) 생성은 엉망이 됩니다.
-        # REF: Vaswani et al., 2017, §3.4 (임베딩에 sqrt(d_model) 곱하기)
+        #      위치 인코딩을 빼도 causal LM 은 학습되지만, 같은 글자가 반복된 입력("aaaa")처럼 내용만으로 구별되지 않는 위치는
+        #      구분하지 못합니다(위치마다 같은 logits). 임베딩을 키우는 ×√D 는 TODO 20 의 작은 초기화와 짝입니다.
+        # REF: Vaswani et al., 2017, §3.4 (임베딩에 sqrt(d_model) 곱하기), §3.5 (위치 인코딩)
         raise NotImplementedError("TODO 21")
 
     def loss(self, ids: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:

@@ -22,7 +22,9 @@ CHECKPOINT = LAB_DIR / "outputs" / "tiny_lm.pt"
 
 
 def load_model(impl, path: Path = CHECKPOINT):
-    ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    # weights_only=True: 체크포인트에는 state_dict(텐서)·문자 목록(str)·설정(dict, 숫자/문자열)만 있어 안전 모드로 충분하다.
+    # 임의의 파이썬 객체를 실행할 수 있는 pickle 로딩을 피한다(남이 준 .pt 파일도 안전하게 열 수 있음).
+    ckpt = torch.load(path, map_location="cpu", weights_only=True)
     cfg = ckpt["config"]
     vocab = impl.CharVocab("".join(ckpt["chars"]))
     model = impl.MiniTransformerLM(len(vocab), cfg["d_model"], cfg["heads"], cfg["layers"], max_len=cfg["block_size"])

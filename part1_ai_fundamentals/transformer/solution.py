@@ -260,6 +260,10 @@ class MiniTransformerLM(nn.Module):
         # 왜 Token ID 를 벡터로: id 는 크기 비교가 의미 없는 이름표다. 학습 가능한 벡터로 바꿔야
         # 비슷한 역할의 토큰이 가까워지고, 어텐션의 내적 점수가 의미를 갖는다.
         self.tok_embed = nn.Embedding(vocab_size, d_model)
+        # std = D^-0.5 로 초기화: 뒤에서 ×√D 를 하면 각 성분 std ≈ 1, 토큰 벡터 노름 ≈ √D (D=64 → 약 8) 가 되어
+        # 사인/코사인 위치 인코딩의 노름 √(D/2) (≈ 5.7) 과 비슷한 크기가 된다 → 토큰과 위치 정보가 균형 있게 더해진다.
+        # nn.Embedding 기본값 N(0, 1) 그대로 ×√D 를 하면 토큰 노름 ≈ D (≈ 64) 로 위치 인코딩을 압도한다(README 9절).
+        nn.init.normal_(self.tok_embed.weight, mean=0.0, std=d_model**-0.5)
         self.pos_enc = PositionalEncoding(d_model, max_len)
         self.blocks = nn.ModuleList(
             [TransformerBlock(d_model, num_heads, dropout=dropout) for _ in range(num_layers)]
@@ -273,8 +277,11 @@ class MiniTransformerLM(nn.Module):
         # TODO 21  REF: Vaswani et al., 2017, §3.4
         if ids.size(1) > self.max_len:
             raise ValueError(f"sequence length {ids.size(1)} > max_len {self.max_len}")
-        # §3.4: 임베딩에 sqrt(D) 를 곱한다. 흔한 해석: N(0,1) 초기화된 임베딩을 키워 위치 인코딩(±1)에 묻히지 않게 한다.
+        # §3.4: 원 논문은 임베딩에 √d_model 을 곱한다고만 적는다. 이 구현은 TODO 20 의 std = D^-0.5 초기화와 짝을 이뤄
+        # 곱한 뒤 성분 크기가 1 근처(노름 ≈ √D)가 되게 한다 → 위치 인코딩(노름 ≈ √(D/2))과 비슷한 크기로 더해진다.
         x = self.tok_embed(ids) * math.sqrt(self.d_model)  # (B, T, D)
+        # 위치 인코딩: causal LM 은 이것 없이도 학습되지만(causal 마스크가 간접 단서를 줌),
+        # 같은 토큰이 반복된 입력처럼 내용만으로 구별되지 않는 위치는 구분하지 못한다(테스트 test_lm_uses_position).
         x = self.pos_enc(x)
         for block in self.blocks:
             # causal=True: 언어모델은 다음 글자를 맞혀야 하므로 미래를 보면 "정답 엿보기"가 된다.

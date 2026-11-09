@@ -71,6 +71,12 @@ Pre-LN은 잔차 경로에 LayerNorm이 없어 기울기가 그대로 흐르고,
 사인/코사인 위치 인코딩은 위치마다 다른 주파수의 파형을 더해 순서를 알려 줍니다(Vaswani et al., 2017, §3.5). 학습하지 않는 buffer라 파라미터 수에 포함되지 않습니다.
 P1-02의 학습형 위치 임베딩과 달리 학습이 필요 없고 모든 위치에 같은 공식을 씁니다.
 
+**토큰 임베딩 크기: 작은 초기화 × √D**
+토큰 벡터와 위치 인코딩은 **더해지므로 크기가 비슷해야** 둘 다 쓰입니다. 사인/코사인 위치 벡터의 노름은 √(D/2)입니다(D = 64면 5.66).
+원 논문은 임베딩에 √d_model을 곱한다고만 적었습니다(Vaswani et al., 2017, §3.4). 이 실습은 토큰 임베딩을 std = D^−0.5로 초기화한 뒤 √D를 곱해, 성분 크기 ≈ 1, 노름 ≈ √D(8)로 맞춥니다.
+`nn.Embedding` 기본값 N(0, 1)에 그대로 √D를 곱하면 노름이 ≈ D(64)가 되어 위치 정보가 묻힙니다. 실측과 대조 실험은 8절에 있습니다.
+위치 인코딩이 없어도 causal LM은 학습됩니다. 다만 `aaaa`처럼 내용만으로 구별되지 않는 위치는 구분하지 못합니다(테스트 `test_lm_uses_position`).
+
 **Encoder 블록 = 이 실습의 블록**
 `TransformerBlock`(별칭 `EncoderBlock`)은 Self-Attention + FFN에 각각 Residual + LayerNorm을 붙인 구조입니다. `causal=False`면 인코더(BERT 계열), `causal=True`면 GPT 같은 디코더 전용 언어모델의 블록이 됩니다. 미니 언어모델은 `causal=True`로 씁니다.
 
@@ -233,18 +239,18 @@ REF는 다음 출처만 씁니다.
 `pytest part1_ai_fundamentals/transformer -rs` (solution)
 
 ```text
-...................                                                      [100%]
-19 passed in 2.62s
+.....................                                                    [100%]
+21 passed in 2.98s
 ```
 
 `IMPL=starter pytest part1_ai_fundamentals/transformer -rs` (아무것도 채우지 않은 상태, 앞부분)
 
 ```text
-sssssssssssssssssss                                                      [100%]
+sssssssssssssssssssss                                                    [100%]
 SKIPPED [1] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:26: TODO 미구현: TODO 1
 SKIPPED [2] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:38: TODO 미구현: TODO 1
 ...
-19 skipped in 1.20s
+21 skipped in 1.43s
 ```
 
 `python part1_ai_fundamentals/transformer/compare_with_torch.py --impl solution`
@@ -267,17 +273,17 @@ SKIPPED [2] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:38
 [device] cpu
 [data] chars=2492 vocab=225 (문자 단위)
 [model] d_model=64 heads=4 layers=2 block=64 params=128,384
-[train] 300 steps, 5.31s
+[train] 300 steps, 4.40s
   step   train_loss   val_loss
-     0       5.5856     5.5983
-    50       2.4571     2.4659
-   100       2.0545     2.4568
-   150       1.8206     2.5139
-   200       1.6163     2.6141
-   250       1.4533     2.6836
-   300       1.3197     2.7377
-[val] 최저 검증 손실 2.4568 @ step 100 (이후 증가하면 과적합)
-[sample] 'the ttaler ny.\nWes s deend dand landang a s anday theelano veani'
+     0       5.5758     5.6084
+    50       2.2227     2.4005
+   100       1.7111     2.4925
+   150       1.0550     2.9526
+   200       0.4787     3.6825
+   250       0.2554     4.0081
+   300       0.1919     4.3465
+[val] 최저 검증 손실 2.4005 @ step 50 (이후 증가하면 과적합)
+[sample] 'the data a owekends I tak ume a at다.\nResidual ply tipries ape wh'
 [saved] part1_ai_fundamentals/transformer/outputs/tiny_lm.pt
 ```
 
@@ -286,15 +292,15 @@ SKIPPED [2] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:38
 ```text
 [text] 'the cat sat on the mat' (T=22)
 [layer 0] heads=4 미래 위치 가중치 합=0.0e+00 행 합 평균=1.000
-  head 0: 바로 앞 글자를 가장 많이 본 비율 0.14, 자기 자신 0.09
-  head 1: 바로 앞 글자를 가장 많이 본 비율 0.14, 자기 자신 0.18
-  head 2: 바로 앞 글자를 가장 많이 본 비율 0.10, 자기 자신 0.14
-  head 3: 바로 앞 글자를 가장 많이 본 비율 0.24, 자기 자신 0.09
+  head 0: 바로 앞 글자를 가장 많이 본 비율 0.19, 자기 자신 0.14
+  head 1: 바로 앞 글자를 가장 많이 본 비율 0.38, 자기 자신 0.14
+  head 2: 바로 앞 글자를 가장 많이 본 비율 0.43, 자기 자신 0.18
+  head 3: 바로 앞 글자를 가장 많이 본 비율 0.14, 자기 자신 0.14
 [layer 1] heads=4 미래 위치 가중치 합=0.0e+00 행 합 평균=1.000
-  head 0: 바로 앞 글자를 가장 많이 본 비율 0.24, 자기 자신 0.18
-  head 1: 바로 앞 글자를 가장 많이 본 비율 0.29, 자기 자신 0.14
-  head 2: 바로 앞 글자를 가장 많이 본 비율 0.14, 자기 자신 0.14
-  head 3: 바로 앞 글자를 가장 많이 본 비율 0.14, 자기 자신 0.18
+  head 0: 바로 앞 글자를 가장 많이 본 비율 0.29, 자기 자신 0.09
+  head 1: 바로 앞 글자를 가장 많이 본 비율 0.19, 자기 자신 0.14
+  head 2: 바로 앞 글자를 가장 많이 본 비율 0.29, 자기 자신 0.27
+  head 3: 바로 앞 글자를 가장 많이 본 비율 0.14, 자기 자신 0.23
 [images] ['part1_ai_fundamentals/transformer/outputs/attention_layer0.png', 'part1_ai_fundamentals/transformer/outputs/attention_layer1.png']
 ```
 
@@ -305,19 +311,30 @@ SKIPPED [2] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:38
   - `F.scaled_dot_product_attention`과의 차이는 4.5e−8입니다. 부동소수점 계산 순서 차이 수준입니다.
   - `nn.MultiheadAttention`과는 마스크 없음 / causal / causal + padding 모두 출력과 head별 가중치가 정확히 같았습니다.
   - 직접 구현이 같은 수식이라는 뜻이며, 마스크 규약만 반대(True = 가림)입니다.
-- **학습 손실은 줄었습니다:** 5.59 → 1.32(300 step, CPU 5.3초). 시작값은 무작위 예측 수준인 `ln 225 ≈ 5.42` 근처입니다.
-- **검증 손실은 step 100(2.46)에서 가장 낮고 이후 오릅니다(2.74).** 말뭉치가 2,492자뿐이라 모델(12.8만 파라미터)이 학습 부분을 외우기 시작한 **과적합**입니다. 게다가 검증 구간(뒤 10%, 250자)은 말뭉치 마지막 영어 문장들(`the cat likes ...`, `a new word ...`, `the lower ...`)이라 학습 구간에 같은 문장이 없습니다. Part 2에서 과적합·조기 종료·데이터 크기를 다룹니다.
-- **생성 예시**는 영어 철자 비슷한 글자 조합(`dand`, `landang`, `anday` 같은 조각)을 만들지만 의미 있는 문장은 아닙니다. 이 크기와 데이터로는 정상입니다.
+- **학습 손실은 크게 줄었습니다:** 5.58 → 0.19(300 step, CPU 4.4초). 시작값은 무작위 예측 수준인 `ln 225 ≈ 5.42` 근처입니다.
+- **검증 손실은 step 50(2.40)에서 가장 낮고 이후 가파르게 오릅니다(4.35).** 말뭉치가 2,492자뿐이라 모델(12.8만 파라미터)이 학습 부분을 **외운 과적합**입니다. 게다가 검증 구간(뒤 10%, 250자)은 말뭉치 마지막 영어 문장들(`the cat likes ...`, `a new word ...`, `the lower ...`)이라 학습 구간에 같은 문장이 없습니다. Part 2에서 과적합·조기 종료·데이터 크기를 다룹니다.
+- **임베딩 크기를 바로잡은 효과(대조 실험, 같은 seed·설정, 300 step):**
+
+  | 임베딩 설정 | 토큰 벡터 노름 (초기) | train loss 300 | 최저 val loss |
+  |---|---|---|---|
+  | **std = D^−0.5 초기화 × √D (정답 기준)** | ≈ 7.9 (위치 인코딩 ≈ 5.66과 비슷) | **0.19** | **2.40** @ 50 |
+  | std = D^−0.5 초기화, ×√D 없음 | ≈ 1.0 (위치 인코딩이 압도) | 0.54 | 2.44 @ 100 |
+  | 기본 N(0, 1) 초기화 × √D (이전 버전) | ≈ 64 (토큰이 위치 인코딩을 압도) | 1.27 | 2.45 @ 100 |
+
+  토큰과 위치 정보의 크기가 비슷할 때 학습(외우기)이 가장 빠릅니다. 이 데이터에서는 검증 손실 최솟값 차이가 작아, 일반화 성능까지 좋아졌다고는 말할 수 없습니다.
+- **생성 예시**에 `the data`, `Residual`처럼 말뭉치의 단어 조각이 나옵니다. 다만 학습 문장을 섞어 외운 결과이고 의미 있는 문장은 아닙니다.
 - **어텐션 가중치:**
   - 모든 층에서 미래 위치 가중치 합이 0이고 행 합이 1입니다. causal 마스크와 softmax가 맞게 동작한다는 뜻입니다.
-  - `outputs/attention_layer1.png`를 보면 head 2는 거의 모든 query가 첫 단어의 `e` 한 곳을 강하게 보고, 다른 head들은 공백·단어 경계 근처를 봅니다.
-  - "바로 앞 글자" 비율(0.10~0.29)이 높지 않아, 이 작은 모델에서 "앞 글자 head"가 뚜렷하게 생기지는 않았습니다. 특정 위치에 몰리는 패턴이 무엇을 뜻하는지는 이 실험만으로 단정할 수 없습니다(과제 5).
+  - `outputs/attention_layer0.png`의 layer 0 head 1·2는 대각선 바로 아래(직전·근처 글자)를 강하게 봅니다. "바로 앞 글자를 가장 많이 본 비율"은 0.38·0.43으로, 이전 버전(0.10~0.24)보다 높습니다. 위치 정보가 제대로 들어가면서 "앞 글자 head"가 생기기 시작한 것으로 보입니다.
+  - layer 0 head 0은 여러 query가 `c`(위치 4)에 몰립니다. 이 패턴의 의미는 이 실험만으로 단정할 수 없습니다(과제 5).
 
 ## 9. 자주 나는 오류
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
 | **출력·가중치에 `nan`** (한 행 전체) | 한 query 행의 key가 전부 가려짐 → softmax(−∞, …) = NaN. 패딩만 있는 문장, 왼쪽 패딩 + causal의 첫 행 등 (테스트 `test_fully_masked_row_gives_nan`) | ① 그런 행이 생기지 않게 마스크 설계(오른쪽 패딩, 빈 문장 제거) ② −∞ 대신 큰 음수(예: `torch.finfo(dtype).min`)로 채우기 — 그 행은 균등 분포가 되어 NaN이 아님 ③ softmax 후 `torch.nan_to_num(weights, nan=0.0)`. 어떤 방법이든 그 위치의 출력은 loss에서 빼야 합니다 |
+| 토큰 벡터가 위치 인코딩을 압도해 위치 정보가 거의 쓰이지 않음 (오류 없음) | `nn.Embedding` 기본 초기화 N(0, 1)에 ×√D → 토큰 노름 ≈ D(64) vs 위치 인코딩 노름 ≈ √(D/2)(5.66) | 토큰 임베딩을 std = D^−0.5로 초기화하고 ×√D (TODO 20·21) → 노름 ≈ √D(8). 테스트 `test_token_embedding_scale_matches_positional_encoding` |
+| 같은 글자가 반복된 입력(`aaaa`)에서 위치마다 예측이 똑같음 | 위치 인코딩 누락 — causal LM은 위치 인코딩 없이도 학습되지만(causal 마스크가 간접 단서를 줌), 내용만으로 구별되지 않는 위치는 구분하지 못함 | 위치 인코딩을 더한다(TODO 17, 21). 테스트 `test_lm_uses_position` |
 | 학습 loss가 거의 0까지 떨어지는데 생성이 엉망 | causal 마스크 누락 → 정답(다음 글자)을 보고 맞힘 | `tril` 마스크, 언어모델은 모든 블록에서 `causal=True` |
 | 가중치 행 합이 1이 아님 | softmax `dim`을 −2로 | key 축 `dim=-1` |
 | 학습 초반 loss가 잘 안 줄고 가중치가 one-hot에 가까움 | `√d_k` 스케일 누락 | `/ math.sqrt(d_k)` (MHA에서는 D가 아니라 head의 d_k) |
@@ -349,6 +366,7 @@ SKIPPED [2] part1_ai_fundamentals/transformer/tests/test_p1_05_transformer.py:38
 - [ ] 멀티헤드에서 `h · d_k = d_model`과 파라미터 수가 단일 헤드와 같은 이유를 설명할 수 있다
 - [ ] Pre-LN과 Post-LN의 차이와 이 실습이 Pre-LN을 쓴 이유를 설명할 수 있다
 - [ ] 위치 인코딩이 없으면 어텐션이 순서를 모르는 이유를 설명할 수 있다
+- [ ] 토큰 임베딩을 std = D^−0.5로 초기화하고 √D를 곱하는 이유(위치 인코딩과 크기 맞추기)를 설명할 수 있다
 - [ ] 실행 결과를 [experiments 기록](../../experiments/P1-05-20261109-transformer/README.md)에 남겼다 (사용자 PC GPU 수치 포함)
 
 ## 12. 다음 단계 연결

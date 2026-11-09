@@ -187,6 +187,35 @@ def test_lm_shapes_initial_loss_and_causality(impl):
         lm(torch.zeros(1, 17, dtype=torch.long))  # max_len 초과
 
 
+def test_lm_uses_position(impl):
+    """위치 인코딩이 실제로 쓰이는지: (a) 같은 토큰 반복 입력에서도 위치마다 logits 가 달라야 하고,
+    (b) 위치 인코딩 표를 0 으로 바꾸면 출력이 바뀌어야 한다. 위치 인코딩을 빼면 (a)·(b) 모두 실패한다."""
+    lm = _tiny_lm(impl)
+    same = torch.full((1, 4), 5)  # [[a, a, a, a]]
+    logits = lm(same)[0]  # (4, V)
+    for t in range(1, 4):
+        assert not torch.allclose(logits[t], logits[0], atol=1e-5), f"위치 {t} 와 0 의 logits 가 같다 → 위치 정보가 없음"
+    ids = torch.tensor([[1, 2, 3, 4, 5]])
+    before = lm(ids)
+    with torch.no_grad():
+        lm.pos_enc.pe.zero_()
+    assert not torch.allclose(lm(ids), before, atol=1e-5)  # (b)
+    # 위치 표가 0 이면 같은 토큰 반복 입력은 위치를 구분하지 못한다 (위치 인코딩이 없을 때의 한계)
+    no_pos = lm(same)[0]
+    torch.testing.assert_close(no_pos[3], no_pos[0])
+
+
+def test_token_embedding_scale_matches_positional_encoding(impl):
+    """TODO 20·21: std = D^-0.5 초기화 × √D → 토큰 벡터 노름 ≈ √D, 위치 인코딩 노름 ≈ √(D/2) 와 같은 크기."""
+    torch.manual_seed(0)
+    d = 64
+    lm = impl.MiniTransformerLM(225, d_model=d, num_heads=4, num_layers=1, max_len=32)
+    tok_norm = (lm.tok_embed.weight * math.sqrt(d)).norm(dim=-1).mean().item()
+    pe_norm = lm.pos_enc.pe.norm(dim=-1).mean().item()
+    assert 0.5 * math.sqrt(d) < tok_norm < 1.5 * math.sqrt(d)  # N(0, 1) 그대로면 ≈ d = 64 로 실패
+    assert tok_norm < 3 * pe_norm
+
+
 def test_generate_length_and_reproducible(impl):
     lm = _tiny_lm(impl)
     start = torch.tensor([[1, 2, 3]])

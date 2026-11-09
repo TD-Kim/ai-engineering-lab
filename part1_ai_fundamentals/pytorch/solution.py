@@ -166,3 +166,40 @@ def train_model(
             count += xb.shape[0]
         history.append(total / count)
     return history
+
+
+# ---------------------------------------------------------------------------
+# 단독 실행: 어느 TODO 가 남았는지 알려 준다.  python part1_ai_fundamentals/pytorch/solution.py
+# ---------------------------------------------------------------------------
+def _report_progress() -> None:
+    x = torch.linspace(-1, 1, 8)
+    checks = [
+        ("TODO 1  get_device (Level 1)", lambda: get_device()),
+        ("TODO 2  normalize_rows (Level 1)", lambda: normalize_rows(torch.ones(2, 3))),
+        ("TODO 3  linear_forward (Level 1)", lambda: linear_forward(torch.ones(2, 3), torch.ones(4, 3), torch.zeros(4))),
+        ("TODO 4  mse_loss (Level 2)", lambda: mse_loss(x, x)),
+        ("TODO 5  manual_mse_grads (Level 2)", lambda: manual_mse_grads(x, x, torch.tensor(1.0), torch.tensor(0.0))),
+        ("TODO 6  train_linear_regression_gd (Level 2)", lambda: train_linear_regression_gd(x, 2 * x, steps=2)),
+        ("TODO 7  MyLinear.__init__ (Level 3)", lambda: MyLinear(3, 2)),
+        ("TODO 8  MyLinear.forward (Level 3)", lambda: MyLinear(3, 2)(torch.ones(1, 3))),
+        ("TODO 9  ToyRegressionDataset (Level 3)", lambda: ToyRegressionDataset(n=4)[0]),
+        ("TODO 10 train_model (Level 3)", lambda: train_model(nn.Linear(3, 2), ToyRegressionDataset(n=8), epochs=1)),
+    ]
+    remaining = 0
+    for name, fn in checks:
+        try:
+            fn()
+            print(f"[완료]   solution")
+        except NotImplementedError:
+            remaining += 1
+            print(f"[미구현] solution")
+    if remaining:
+        print(f"\n남은 TODO {remaining}개 — 위에서부터 순서대로 채우세요. 채운 뒤 검사:")
+        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/pytorch")
+        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/pytorch; Remove-Item Env:IMPL')
+    else:
+        print("\n모든 TODO 가 구현되었습니다. 이제 pytest 로 정답 여부를 확인하세요.")
+
+
+if __name__ == "__main__":
+    _report_progress()

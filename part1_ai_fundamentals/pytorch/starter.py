@@ -5,6 +5,7 @@ Level 2: autograd, 손으로 구한 기울기와 비교, 경사하강법 (TODO 4
 Level 3: nn.Module · Dataset · DataLoader 학습 루프, nn.Linear와 비교 (TODO 7~10)
 
 검사: IMPL=starter pytest part1_ai_fundamentals/pytorch
+진행 확인: python part1_ai_fundamentals/pytorch/starter.py   (남은 TODO 목록 출력)
 실행: python part1_ai_fundamentals/pytorch/run_demo.py --impl starter
 """
 from __future__ import annotations
@@ -88,7 +89,7 @@ def train_linear_regression_gd(
         history.append(loss.item())
         # TODO 6: 역전파 → 파라미터 갱신 → 기울기 초기화를 구현하세요 (optimizer 사용 금지).
         # HINT 1: 갱신 연산 자체가 계산 그래프에 기록되면 안 됩니다.
-        # HINT 2: loss.backward(), with torch.no_grad(): ..., w -= lr * w.grad, w.grad.zero_()
+        # HINT 2: Tensor.backward(), torch.no_grad() 컨텍스트, in-place 연산(-=), Tensor.grad, Tensor.zero_()
         # WHY: .grad 는 누적됩니다. 매 step 초기화하지 않으면 이전 기울기가 더해져 발산합니다.
         # REF: https://pytorch.org/tutorials/beginner/blitz/autograd_tutorial.html
         raise NotImplementedError("TODO 6")
@@ -105,7 +106,7 @@ class MyLinear(nn.Module):
         super().__init__()
         # TODO 7: self.weight (out, in), self.bias (out,) 를 학습 가능한 파라미터로 만드세요.
         # HINT 1: 모델의 parameters() 에 잡혀야 optimizer 가 갱신할 수 있습니다.
-        # HINT 2: nn.Parameter(torch.empty(...).uniform_(-bound, bound)), bound = 1 / sqrt(in_features)
+        # HINT 2: nn.Parameter, torch.empty(shape).uniform_(a, b) — 범위는 ±1/sqrt(in_features) (nn.Linear 기본값)
         # WHY: 일반 텐서로 두면 오류 없이 "학습이 전혀 안 되는" 버그가 생깁니다.
         # REF: https://pytorch.org/docs/stable/generated/torch.nn.parameter.Parameter.html
         raise NotImplementedError("TODO 7")
@@ -113,7 +114,7 @@ class MyLinear(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # TODO 8: (N, in) -> (N, out) 순전파를 구현하세요.
         # HINT 1: Level 1 에서 만든 함수를 재사용할 수 있습니다.
-        # HINT 2: linear_forward(x, self.weight, self.bias)
+        # HINT 2: (N, in) -> (N, out). 필요한 weight·bias 는 TODO 7 에서 self 에 만들어 두었습니다.
         # WHY: nn.Module 의 forward 는 "연산 정의"일 뿐이고, 호출은 model(x) 로 합니다(hook 등이 함께 동작).
         raise NotImplementedError("TODO 8")
 
@@ -162,7 +163,7 @@ def train_model(
             xb, yb = xb.to(device), yb.to(device)
             # TODO 10: 한 배치에 대한 학습 단계를 구현하고 loss 변수를 만드세요.
             # HINT 1: 기울기 초기화 → 순전파 → loss → 역전파 → 파라미터 갱신 순서입니다.
-            # HINT 2: optimizer.zero_grad(), mse_loss(model(xb), yb), loss.backward(), optimizer.step()
+            # HINT 2: optimizer 의 '초기화'·'갱신' 메서드, TODO 4 의 mse_loss, Tensor.backward(). 결과를 loss 변수에 담으세요.
             # WHY: zero_grad 를 빼면 기울기가 누적되고, step 을 backward 보다 먼저 하면 이전 배치 기울기로 갱신됩니다.
             # REF: https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
             raise NotImplementedError("TODO 10")
@@ -170,3 +171,40 @@ def train_model(
             count += xb.shape[0]
         history.append(total / count)
     return history
+
+
+# ---------------------------------------------------------------------------
+# 단독 실행: 어느 TODO 가 남았는지 알려 준다.  python part1_ai_fundamentals/pytorch/starter.py
+# ---------------------------------------------------------------------------
+def _report_progress() -> None:
+    x = torch.linspace(-1, 1, 8)
+    checks = [
+        ("TODO 1  get_device (Level 1)", lambda: get_device()),
+        ("TODO 2  normalize_rows (Level 1)", lambda: normalize_rows(torch.ones(2, 3))),
+        ("TODO 3  linear_forward (Level 1)", lambda: linear_forward(torch.ones(2, 3), torch.ones(4, 3), torch.zeros(4))),
+        ("TODO 4  mse_loss (Level 2)", lambda: mse_loss(x, x)),
+        ("TODO 5  manual_mse_grads (Level 2)", lambda: manual_mse_grads(x, x, torch.tensor(1.0), torch.tensor(0.0))),
+        ("TODO 6  train_linear_regression_gd (Level 2)", lambda: train_linear_regression_gd(x, 2 * x, steps=2)),
+        ("TODO 7  MyLinear.__init__ (Level 3)", lambda: MyLinear(3, 2)),
+        ("TODO 8  MyLinear.forward (Level 3)", lambda: MyLinear(3, 2)(torch.ones(1, 3))),
+        ("TODO 9  ToyRegressionDataset (Level 3)", lambda: ToyRegressionDataset(n=4)[0]),
+        ("TODO 10 train_model (Level 3)", lambda: train_model(nn.Linear(3, 2), ToyRegressionDataset(n=8), epochs=1)),
+    ]
+    remaining = 0
+    for name, fn in checks:
+        try:
+            fn()
+            print(f"[완료]   starter")
+        except NotImplementedError:
+            remaining += 1
+            print(f"[미구현] starter")
+    if remaining:
+        print(f"\n남은 TODO {remaining}개 — 위에서부터 순서대로 채우세요. 채운 뒤 검사:")
+        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/pytorch")
+        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/pytorch; Remove-Item Env:IMPL')
+    else:
+        print("\n모든 TODO 가 구현되었습니다. 이제 pytest 로 정답 여부를 확인하세요.")
+
+
+if __name__ == "__main__":
+    _report_progress()

@@ -4,7 +4,7 @@
 |---|---|
 | 실습 ID | P1-04 |
 | 난이도 | Level 1 → 2 → 3 |
-| 진행 순서 | Part 1의 **첫 번째** 실습 (pytorch → tokenizer → embedding → word2vec → transformer). 로드맵 표의 주차(W4)는 Part 0 문서 정리 때 이 순서에 맞춰 고칠 예정 |
+| 주차 · 진행 순서 | W2 · Part 1의 **선수 실습(맨 앞)** — 이후 모든 실습이 Tensor·autograd·학습 루프를 쓰기 때문. 그 뒤 순서: tokenizer → embedding → word2vec → transformer |
 | 예상 시간 | 3~4시간 |
 | 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p1_04_pytorch.py`, `run_demo.py` |
 

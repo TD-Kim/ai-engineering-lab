@@ -20,12 +20,14 @@
 
 ## Part 1 — AI 원리
 
+> 진행 순서: **P1-04 PyTorch 기초를 선수 실습으로 맨 앞에 둔다**(이후 모든 실습이 Tensor·autograd·학습 루프를 쓰기 때문). 그 뒤는 기획서 순서 1-1 Tokenizer(P1-01) → 1-2 Embedding(P1-02) → 1-3 Word2Vec(P1-03) → 1-4 Transformer(P1-05).
+
 | ID | 실습 | 주차 | 난이도 | 상태 | 확인일 | 메모 |
 |---|---|---|---|---|---|---|
-| P1-01 | Tokenizer · BPE 직접 구현 | W2 | L1–L2 | `NOT_STARTED` | | |
-| P1-02 | Embedding 기초 | W3 | L1 | `NOT_STARTED` | | |
-| P1-03 | Word2Vec (CBOW, Skip-gram, Negative Sampling) | W3 | L2 | `NOT_STARTED` | | |
-| P1-04 | PyTorch 기초 | W4 | L1 | `NOT_STARTED` | | |
+| P1-04 | (선수) PyTorch 기초 | W2 | L1–L3 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
+| P1-01 | Tokenizer · BPE 직접 구현 | W3 | L1–L3 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
+| P1-02 | Embedding 기초 | W4 | L1 | `NOT_STARTED` | | |
+| P1-03 | Word2Vec (CBOW, Skip-gram, Negative Sampling) | W4 | L2 | `NOT_STARTED` | | |
 | P1-05a | Transformer 부품 (Attention, MHA, FFN, Residual, LayerNorm, PE) | W5 | L2 | `NOT_STARTED` | | |
 | P1-05b | 미니 GPT 조립·학습 | W6 | L3 | `NOT_STARTED` | | |
 

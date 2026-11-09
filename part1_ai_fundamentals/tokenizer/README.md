@@ -4,7 +4,7 @@
 |---|---|
 | 실습 ID | P1-01 |
 | 난이도 | Level 1 → 2 → 3 |
-| 진행 순서 | Part 1의 **두 번째** 실습 (pytorch → **tokenizer** → embedding → word2vec → transformer) |
+| 주차 · 진행 순서 | W3 · Part 1의 두 번째 실습 (선수 pytorch → **tokenizer** → embedding → word2vec → transformer) |
 | 예상 시간 | 3~4시간 |
 | 필요 패키지 | 순수 Python(torch 불필요). Level 3만 `tokenizers` ([requirements/part1.txt](../../requirements/part1.txt)) |
 | 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p1_01_tokenizer.py`, `compare_with_hf.py` |

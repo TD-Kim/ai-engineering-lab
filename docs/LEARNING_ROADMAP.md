@@ -24,12 +24,15 @@
 | W1 | P0-01 | uv + Python 3.12 `.venv`, PyTorch cu128 설치, [GPU 검증](ENVIRONMENT.md#5-gpu-검증-스크립트), 문서 검토 |
 
 ### Part 1 — AI 원리 ([part1_ai_fundamentals](../part1_ai_fundamentals/README.md))
+
+> 진행 순서: **P1-04 PyTorch 기초를 선수 실습으로 맨 앞에 둔다**(이후 모든 실습이 Tensor·autograd·학습 루프를 쓰기 때문). 그 뒤는 기획서 순서 1-1 Tokenizer(P1-01) → 1-2 Embedding(P1-02) → 1-3 Word2Vec(P1-03) → 1-4 Transformer(P1-05).
+
 | 주차 | 실습 ID | 내용 | 난이도 |
 |---|---|---|---|
-| W2 | P1-01 | Tokenizer: 문자/단어/서브워드, **BPE 직접 구현**, HF `tokenizers`와 비교 | L1–L2 |
-| W3 | P1-02 | Embedding: one-hot vs dense, 코사인 유사도, `nn.Embedding` | L1 |
-| W3 | P1-03 | Word2Vec: CBOW, Skip-gram, **Negative Sampling** 직접 구현, gensim과 비교 | L2 |
-| W4 | P1-04 | PyTorch 기초: Tensor, autograd, `nn.Module`, DataLoader, GPU 이동 | L1 |
+| W2 | P1-04 | **(선수)** PyTorch 기초: Tensor, autograd, `nn.Module`, DataLoader, GPU 이동 | L1–L3 |
+| W3 | P1-01 | Tokenizer: 문자/단어/서브워드, 특수 토큰·padding, **BPE 직접 구현**, HF `tokenizers`와 비교 | L1–L3 |
+| W4 | P1-02 | Embedding: one-hot vs dense, 코사인 유사도, `nn.Embedding` | L1 |
+| W4 | P1-03 | Word2Vec: CBOW, Skip-gram, **Negative Sampling** 직접 구현, gensim과 비교 | L2 |
 | W5 | P1-05a | Transformer 부품: Self-Attention, MHA, FFN, Residual, LayerNorm, Positional Encoding | L2 |
 | W6 | P1-05b | **미니 GPT** 조립·학습(문자 단위 또는 작은 BPE 어휘) | L3 |
 

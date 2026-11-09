@@ -50,7 +50,7 @@ one-hot은 이 문제를 없애지만 모든 단어 사이 거리가 같아(√2
 그래서 실제 구현은 인덱싱(조회)을 쓰고, 역전파에서도 **등장한 ID의 행에만** 기울기가 흐릅니다.
 
 **왜 코사인 유사도인가?**
-내적 `a·b = |a||b|cos θ`는 길이에 비례합니다. 자주 나오는 단어는 학습 중 자주 갱신되어 벡터 길이가 커지기 쉽고, 그러면 내적 기준으로는 "모든 단어와 비슷한" 단어가 됩니다.
+내적 `a·b = |a||b|cos θ`는 길이에 비례합니다. 자주 나오는 단어는 학습 중 자주 갱신되어 벡터 길이가 커지는 경향이 있고, 그러면 내적 기준으로는 "모든 단어와 비슷해 보이는" 단어가 되기 쉽습니다(과제 2에서 직접 확인).
 코사인은 길이를 나눠 지우고 방향만 보므로 이런 왜곡이 없습니다. 테스트 `test_cosine_similarity_matrix_and_length_invariance`가 길이를 10배 해도 값이 같은지 확인합니다.
 
 **위치 임베딩이 없으면 순서가 사라진다**
@@ -71,7 +71,7 @@ flowchart LR
 ```
 
 **초기화 분포**
-`EmbeddingLayer`는 `nn.Embedding`과 같은 N(0, 1)로 초기화합니다. 0으로 초기화하면 모든 토큰이 같은 벡터가 되어 구별할 수 없습니다.
+`EmbeddingLayer`는 `nn.Embedding`과 같은 N(0, 1)로 초기화합니다. 0으로 초기화하면 처음엔 모든 토큰이 같은 벡터라 구별이 안 되고, 뒤 층 가중치도 0이면 임베딩으로 오는 기울기까지 0이라 학습으로도 이 상태가 깨지지 않습니다.
 위치 임베딩은 std 0.02로 작게 시작해 처음에는 토큰 벡터를 크게 흔들지 않게 했습니다. 이 값은 설계 선택이며 모델마다 다릅니다.
 P1-05 Transformer에서는 고정된 사인/코사인 위치 인코딩도 다룹니다.
 
@@ -148,6 +148,7 @@ python part1_ai_fundamentals/embedding/compare_pretrained.py --impl solution
 
 - 테스트는 `IMPL` 환경 변수로 `starter.py`/`solution.py`를 **파일 경로 기준**으로 불러옵니다(`part1_ai_fundamentals/conftest.py`).
 - TODO가 남아 있으면 해당 테스트는 실패가 아니라 **`skipped`(TODO 미구현: TODO n)** 로 나옵니다. 번호는 그 테스트가 처음 부딪힌 TODO입니다. 예를 들어 `nn.Embedding` 비교 테스트는 먼저 TODO 7을 부릅니다.
+- `compare_pretrained.py`는 multilingual-e5 계열이면 양쪽 문장에 `query: ` 접두어를 붙여 측정합니다. 문장 유사도 같은 대칭 작업에 모델 카드가 권장하는 방식입니다. 작성 환경에서 huggingface.co 접속이 막혀 원문은 재확인하지 못했으니(미확인) 사용 전에 모델 카드를 확인하세요. 접두어 없이 재려면 `--prefix ""`를 씁니다.
 - `compare_pretrained.py`는 **다운로드하지 않습니다**(`local_files_only`). `sentence-transformers`가 없거나 모델이 로컬에 없으면 `[건너뜀]`을 출력하고, 해당 테스트도 skip됩니다.
 - GPU가 있으면 `run_demo.py`가 자동으로 cuda를 씁니다. 전체 실행은 CPU에서 수 초면 끝납니다.
 
@@ -246,7 +247,8 @@ SKIPPED [1] part1_ai_fundamentals/embedding/tests/test_p1_02_embedding.py:25: TO
 | `most_similar` 1등이 항상 자기 자신 | 자기 자신 제외 누락 | 자기 위치를 `-inf`로 |
 | `RuntimeError: ... does not require grad` / 검색 중 그래프 생성 | 학습 파라미터로 검색 | `.detach()` |
 | 위치 임베딩 shape 오류 `(B,T,D)+(L,D)` | `[:T]`로 자르지 않음 | `pos(seq_len)` → (T, D) |
-| PCA 그림이 한 점에 몰림 | 중심화 누락 | 평균을 빼고 SVD |
+| PCA 첫 번째 축이 데이터 평균 방향으로 치우침 | 중심화 누락 | 평균을 빼고 SVD |
+| 저장했다 불러온 모델에서 패딩 행이 다시 학습됨 (오류 없음) | `torch.save(model)`로 모듈 전체를 저장하면 파라미터에 건 기울기 차단 hook이 사라짐 (torch 2.15에서 확인) | `torch.save(model.state_dict(), path)`로 저장하고, 같은 클래스(`padding_idx` 포함)로 만든 뒤 `load_state_dict` |
 | Windows에서 한글 깨짐 | 기본 인코딩 cp949 | `$env:PYTHONUTF8 = "1"` |
 | `compare_pretrained.py`가 항상 건너뜀 | 패키지·로컬 모델 없음 | `uv pip install sentence-transformers` 후 모델을 한 번 내려받아 캐시에 둠 (라이선스 확인) |
 
@@ -256,7 +258,7 @@ SKIPPED [1] part1_ai_fundamentals/embedding/tests/test_p1_02_embedding.py:25: TO
 2. **내적 vs 코사인:** `most_similar`를 코사인 대신 내적으로 바꿔 학습 후 이웃을 비교하세요. 벡터 길이가 가장 긴 단어들은 무엇이고, 그 단어들이 이웃 목록을 차지하나요?
 3. **padding_idx 끄기:** `padding_idx`의 기울기 차단을 빼고 패딩이 많은 배치로 학습할 때 패딩 행이 어떻게 변하는지 기록하세요.
 4. **순서 구별:** 평균 대신 "위치별 가중 평균" 또는 "첫 토큰 벡터"를 문장 벡터로 쓰면 `[1,2,3]`과 `[3,2,1]`이 구별되는지 확인하세요.
-5. **(Level 3+) 사전학습 비교:** 사용자 PC에서 `compare_pretrained.py`를 실행하세요. 비슷한 문장 쌍과 다른 문장 쌍의 코사인 차이를 무작위 임베딩 평균과 비교해 기록하세요. e5 계열은 `query: ` / `passage: ` 접두어 규칙이 있으니 모델 카드를 확인하세요.
+5. **(Level 3+) 사전학습 비교:** 사용자 PC에서 `compare_pretrained.py`를 실행하세요. 비슷한 문장 쌍과 다른 문장 쌍의 코사인 차이를 무작위 임베딩 평균과 비교해 기록하세요. 기본(`query: ` 접두어)과 `--prefix ""`의 결과도 비교해 보세요.
 
 ## 11. 체크리스트
 

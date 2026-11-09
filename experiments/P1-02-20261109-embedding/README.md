@@ -65,6 +65,7 @@ pytest: solution `12 passed, 1 skipped`, starter(빈 상태) `13 skipped`. skip 
 - 그림 `part1_ai_fundamentals/embedding/outputs/pca_{before,after}.png`는 커밋하지 않는다(`.gitignore`).
 
 사전학습 임베딩 비교(`compare_pretrained.py`): **이 환경에서는 실행하지 않음**(건너뜀). 사용자 PC 결과를 아래에 채운다.
+측정 조건: multilingual-e5 계열은 양쪽 문장에 `query: ` 접두어를 붙인다(대칭 작업에 대한 모델 카드 권장. 원문은 작성 환경에서 재확인하지 못함). 접두어 없이 잰 경우 `--prefix ""`로 따로 기록한다.
 
 | 문장 쌍 | 사전학습 코사인 | 무작위 임베딩 평균 코사인 |
 |---|---|---|

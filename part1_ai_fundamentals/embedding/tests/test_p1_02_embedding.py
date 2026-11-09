@@ -146,7 +146,7 @@ def test_compare_pretrained_optional(impl):
     model, reason = mod.load_model(mod.DEFAULT_MODEL)
     if model is None:
         pytest.skip(f"사전학습 비교 건너뜀: {reason}")
-    rows = mod.compare(impl, model)
+    rows = mod.compare(impl, model, mod.default_prefix(mod.DEFAULT_MODEL))
     # 사전학습 모델은 의미가 비슷한 쌍(0, 2)을 다른 쌍(1, 3)보다 더 가깝게 본다
     assert rows[0]["pretrained_cos"] > rows[1]["pretrained_cos"]
     assert rows[2]["pretrained_cos"] > rows[3]["pretrained_cos"]

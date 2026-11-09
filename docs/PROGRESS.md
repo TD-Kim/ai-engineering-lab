@@ -26,7 +26,7 @@
 |---|---|---|---|---|---|---|
 | P1-04 | (선수) PyTorch 기초 | W2 | L1–L3 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
 | P1-01 | Tokenizer · BPE 직접 구현 | W3 | L1–L3 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
-| P1-02 | Embedding 기초 | W4 | L1 | `NOT_STARTED` | | |
+| P1-02 | Embedding 기초 | W4 | L1–L3 | `NOT_STARTED` | | |
 | P1-03 | Word2Vec (CBOW, Skip-gram, Negative Sampling) | W4 | L2 | `NOT_STARTED` | | |
 | P1-05a | Transformer 부품 (Attention, MHA, FFN, Residual, LayerNorm, PE) | W5 | L2 | `NOT_STARTED` | | |
 | P1-05b | 미니 GPT 조립·학습 | W6 | L3 | `NOT_STARTED` | | |

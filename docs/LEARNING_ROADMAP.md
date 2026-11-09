@@ -31,7 +31,7 @@
 |---|---|---|---|
 | W2 | P1-04 | **(선수)** PyTorch 기초: Tensor, autograd, `nn.Module`, DataLoader, GPU 이동 | L1–L3 |
 | W3 | P1-01 | Tokenizer: 문자/단어/서브워드, 특수 토큰·padding, **BPE 직접 구현**, HF `tokenizers`와 비교 | L1–L3 |
-| W4 | P1-02 | Embedding: one-hot vs dense, 코사인 유사도, `nn.Embedding` | L1 |
+| W4 | P1-02 | Embedding: one-hot vs dense, 코사인 유사도, 문장 벡터, 위치 임베딩, `nn.Embedding` 비교 | L1–L3 |
 | W4 | P1-03 | Word2Vec: CBOW, Skip-gram, **Negative Sampling** 직접 구현, gensim과 비교 | L2 |
 | W5 | P1-05a | Transformer 부품: Self-Attention, MHA, FFN, Residual, LayerNorm, Positional Encoding | L2 |
 | W6 | P1-05b | **미니 GPT** 조립·학습(문자 단위 또는 작은 BPE 어휘) | L3 |

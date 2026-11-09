@@ -68,7 +68,7 @@ def cosine_similarity(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     # TODO 5: a 의 모든 행과 b 의 모든 행 사이의 코사인 유사도 (N, M) 행렬을 반환하세요.
     # HINT 1: 정규화한 벡터끼리의 내적이 곧 코사인 유사도입니다.
     # HINT 2: TODO 4 를 재사용하고, (N, D) 와 (M, D) 를 행렬곱하려면 한쪽을 전치해야 합니다.
-    # WHY: 내적은 벡터 길이에 비례합니다. 길이는 빈도처럼 의미와 무관한 이유로 커지기 쉬워, 방향만 비교해야 의미가 비슷한지 봅니다.
+    # WHY: 내적은 벡터 길이에 비례합니다. 길이는 빈도처럼 의미와 무관한 이유로 커지는 경향이 있어, 방향만 비교해야 의미가 비슷한지 봅니다.
     raise NotImplementedError("TODO 5")
 
 
@@ -95,7 +95,8 @@ class EmbeddingLayer(nn.Module):
         #         padding_idx 가 주어지면 그 행을 0 으로 만들고, 그 행에는 기울기가 흐르지 않게 하세요.
         # HINT 1: nn.Embedding 의 기본 초기화는 표준정규분포입니다. 패딩 행은 "학습 중에도" 0 이어야 합니다.
         # HINT 2: nn.Parameter, torch.randn, torch.no_grad() 안에서 zero_(), Tensor.register_hook (기울기를 바꿔 돌려주는 함수)
-        # WHY: 0 으로만 초기화하면 모든 토큰 벡터가 같아 구별할 수 없습니다. 패딩 행이 학습되면 "빈칸"이 의미를 갖게 됩니다.
+        # WHY: 0 으로만 초기화하면 처음엔 모든 토큰 벡터가 같아 구별할 수 없고, 뒤 층도 0 이면 학습으로도 깨지지 않습니다.
+        #      패딩 행이 학습되면 "빈칸"이 의미를 갖게 됩니다.
         # REF: https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html
         raise NotImplementedError("TODO 7")
 

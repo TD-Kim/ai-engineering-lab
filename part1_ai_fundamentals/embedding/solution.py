@@ -63,7 +63,7 @@ def cosine_similarity(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """a: (N, D), b: (M, D) -> (N, M) 모든 쌍의 코사인 유사도"""
     # TODO 5
     # cos(a, b) = a·b / (|a||b|). 먼저 정규화하면 행렬곱 한 번으로 N×M 쌍을 모두 구한다.
-    # 왜 코사인인가: 내적은 벡터 길이에 비례한다. 길이는 빈도 등 의미와 무관한 요인으로 커지기 쉬워서,
+    # 왜 코사인인가: 내적은 벡터 길이에 비례한다. 길이는 빈도 등 의미와 무관한 요인으로 커지는 경향이 있어서,
     # 길이를 지우고 "방향"만 비교해야 의미가 비슷한지를 본다. 값의 범위도 [-1, 1] 로 고정되어 해석하기 쉽다.
     return l2_normalize(a) @ l2_normalize(b).T  # (N, D) @ (D, M) -> (N, M)
 
@@ -92,7 +92,8 @@ class EmbeddingLayer(nn.Module):
         super().__init__()
         # TODO 7  REF: https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html
         # 초기화 N(0, 1): nn.Embedding 의 기본값과 같다.
-        # - 0 으로 두면 모든 토큰 벡터가 같아 구별이 안 되고, 기울기도 모든 행에 똑같이 흘러 대칭이 깨지지 않는다.
+        # - 0 으로 두면 처음엔 모든 토큰 벡터가 같아 구별이 안 되고, 뒤 층 가중치도 0 이면 임베딩으로 오는 기울기까지 0 이라
+        #   학습으로도 이 상태가 깨지지 않는다.
         # - 무작위 값이면 처음부터 토큰마다 다른 방향을 가져 학습이 서로 다른 위치로 밀어낼 수 있다.
         # (Transformer 처럼 sqrt(D) 를 곱하거나 std 를 작게 쓰는 등 모델마다 조정한다 → P1-05)
         self.weight = nn.Parameter(torch.randn(num_embeddings, embedding_dim))
@@ -102,6 +103,9 @@ class EmbeddingLayer(nn.Module):
                 self.weight[padding_idx].zero_()  # 패딩은 "아무 정보 없음" → 0 벡터
             # 패딩 행은 학습되지 않게 기울기를 0 으로 만든다(nn.Embedding 의 padding_idx 와 같은 동작).
             # 이렇게 하지 않으면 패딩이 많은 배치에서 패딩 벡터가 의미를 갖도록 학습되어 버린다.
+            # 주의: 이 hook 은 파라미터 객체에 붙는다. torch.save(model) 로 모듈 전체를 저장했다가 불러오면 오류 없이
+            #       hook 만 사라져 패딩 행이 다시 학습된다(torch 2.15 에서 확인). 저장은 torch.save(model.state_dict(), path),
+            #       불러오기는 같은 클래스(padding_idx 포함)로 만든 뒤 load_state_dict 로 한다 → __init__ 에서 hook 이 다시 걸린다.
             self.weight.register_hook(lambda g: g.index_fill(0, torch.tensor([padding_idx], device=g.device), 0.0))
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:

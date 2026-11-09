@@ -15,7 +15,7 @@ Tokenizer부터 Transformer까지 핵심 부품을 직접 구현하고, 작은 T
 |---|---|---|---|
 | [pytorch](./pytorch/README.md) (선수) | P1-04 | L1–L3 | W2 |
 | [tokenizer](./tokenizer/README.md) | P1-01 | L1–L3 | W3 |
-| [embedding](./embedding/README.md) | P1-02 | L1 | W4 |
+| [embedding](./embedding/README.md) | P1-02 | L1–L3 | W4 |
 | [word2vec](./word2vec/README.md) | P1-03 | L2 | W4 |
 | [transformer](./transformer/README.md) | P1-05a, P1-05b | L2–L3 | W5–6 |
 

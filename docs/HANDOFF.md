@@ -1,27 +1,38 @@
-# HANDOFF — Part 1 (part1-ai-fundamentals 브랜치, WIP)
+# HANDOFF — Part 1 (main 에서 한 실습씩 순차 진행)
 
-토큰 한도 때문에 작업 도중 중단했다. 아래는 중단 시점의 상태다.
+진행 방식: 한 번에 한 실습만 완성한 뒤 멈춘다. 다음 실습은 ①(총괄 세션)의 지시를 받고 시작한다.
+순서: ① pytorch → ② tokenizer → ③ embedding → ④ word2vec → ⑤ transformer
 
-## 완료된 것
-- 공통: 루트 `pytest.ini`(importlib 모드), `part1_ai_fundamentals/conftest.py`. `impl` 픽스처가 `IMPL=solution|starter`에 따라 모듈을 불러오고, starter에서 `NotImplementedError`가 나면 skip으로 보고한다.
-- `part1_ai_fundamentals/data/corpus_ko_en.txt`: 직접 작성한 소규모 한국어·영어 말뭉치.
-- pytorch: `starter.py` / `solution.py`(TODO 1~10), `tests/test_pytorch_basics.py`, `run_demo.py`. torch가 없어 테스트는 아직 실행하지 않았다.
-- tokenizer: `starter.py` / `solution.py`(TODO 1~8, BPE), `compare_with_hf.py`, `tests/test_tokenizer.py`. 테스트 10개 통과(solution 기준).
-  HF와 처음 50개 병합의 겹침은 0.52, 토큰 수 비율은 0.97. 차이가 나는 원인: HF는 `</w>`를 처음부터 마지막 글자에 붙여서 학습을 시작한다.
-- embedding: `starter.py` / `solution.py`(TODO 1~6), `tests/test_embedding.py`. 테스트는 아직 실행하지 않았다(torch 필요).
-- word2vec: `starter.py` / `solution.py`(TODO 1~9), `compare_with_gensim.py`, `tests/test_word2vec.py`. 테스트는 아직 실행하지 않았다(torch 필요).
-- transformer: `solution.py`만 있다(TODO 1~23: SelfAttention 1~10, MHA 11~14, FFN·PE·Block 15~19, 미니 LM 20~23).
+## 실습별 상태
 
-## 미완료 TODO
-1. 이 환경에 torch 설치. download.pytorch.org가 프록시에 막혀 있어 PyPI판 torch 설치를 시도했으나 중간에 중단했다. 이후 pytorch·embedding·word2vec·transformer 테스트를 실행해야 한다.
-2. transformer: `starter.py`, `tests/test_transformer.py`(nn.MultiheadAttention·F.scaled_dot_product_attention과 비교, 마스크·잔차 검증), `compare_with_torch.py`, `train.py`, `visualize_attention.py`.
-3. `datasets/download_tiny_shakespeare.py`: 다운로드 스크립트만 두고, 데이터는 커밋하지 않는다.
-4. 각 하위 디렉터리 README 12항목 작성. 현재는 Part 0에서 만든 자리표시자 README 그대로다.
-5. embedding 데모 스크립트(선택).
-6. `experiments/part1/`: 템플릿과 CPU 실행 결과(loss, 시간). GPU 칸은 "사용자 PC에서 측정 필요"로 둔다.
-7. `docs/ARCHITECTURE.md` §4 예시를 실제 `SelfAttention` 코드(TODO 7~9, 클래스 안 inline)에 맞게 수정.
-8. `requirements/part1.txt` 정합성 확인. `docs/PROGRESS.md`의 Part 1은 NOT_STARTED로 유지한다.
-9. 완료한 뒤 오케스트레이터에게 보고: 해시, 파일 목록, pytest 결과, 학습 포인트, 한계.
+| 순서 | 실습 | 상태 | 비고 |
+|---|---|---|---|
+| ① | P1-04 pytorch | **완료(검증 대기)** | 테스트 10개 통과(solution). starter 상태에서는 10개 모두 skip. README 12항목, 실험 기록 작성 |
+| ② | P1-01 tokenizer | 코드 초안만 있음 | starter/solution/tests/compare_with_hf 존재, 테스트 10개 통과(solution). 테스트 파일명 변경, README, 진행 안내, 힌트 점검 필요 |
+| ③ | P1-02 embedding | 코드 초안만 있음 | 테스트 통과(solution). 테스트 파일명 변경, README, 데모, 힌트 점검 필요 |
+| ④ | P1-03 word2vec | 코드 초안만 있음 | **루트 `pytest`에서 `test_training_reduces_loss_and_groups_words[cbow]` 실패**(purity 0.33 < 0.6). CBOW 학습 설정(epoch·lr, 양쪽 문맥만 쓰는 예제 수 부족) 조정 필요 |
+| ⑤ | P1-05 transformer | solution.py만 있음 | starter, tests, train.py, visualize_attention.py, compare_with_torch.py, README 필요 |
 
-## 재개할 첫 단계
-`uv venv --python 3.12 .venv && uv pip install torch` (PyPI) → `pytest part1_ai_fundamentals`로 기존 4개 실습 검증 → transformer `starter.py`와 테스트 작성.
+`docs/PROGRESS.md`의 Part 1 항목은 모두 `NOT_STARTED`로 유지한다. 학습자가 직접 확인해야 `COMPLETED`가 된다.
+
+## 공통 규약 (Part 1 전체에 적용)
+- 테스트는 `part1_ai_fundamentals/conftest.py`의 `impl` 픽스처를 쓴다.
+  - 실습 디렉터리의 `{IMPL}.py`를 파일 경로 기준으로, 고유한 모듈명(`part1_<디렉터리>_<impl>`)으로 불러온다.
+  - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
+- 루트 `pytest.ini`: `--import-mode=importlib`.
+- 테스트 파일명은 실습별로 고유하게 짓는다. pytorch는 `test_p1_04_pytorch.py`로 적용 완료. 나머지 실습은 각자 차례에 이름을 바꾼다(tokenizer → `test_p1_01_*.py` 등).
+- 루트에서 `pytest` 한 번으로 4개 실습 36개 테스트가 섞이지 않고 실행되는 것을 확인했다(위의 word2vec 1건만 실패).
+- starter를 단독 실행하면(`python <실습>/starter.py`) 남은 TODO 목록이 나온다. pytorch에 적용했고, 나머지 실습도 같은 방식으로 맞춘다.
+
+## 환경 메모
+- 클라우드 환경에서는 download.pytorch.org가 막혀 있어 PyPI의 torch(2.15.0+cu132, CPU로 동작)를 설치했다. 설치에 수십 분이 걸린다.
+- `.venv`: Python 3.12.13, numpy 2.5.4, gensim 4.4.0, tokenizers 0.23.3.
+
+## 보류 (①의 지시가 있을 때 진행)
+Part 0 문서 수정 — ENVIRONMENT 정정, REPOSITORY_ANALYSIS 실제 경로, API 기반 전환(.env.example, 비용 안내), 실험 디렉터리 이름 통일, ARCHITECTURE §4 예시를 실제 SelfAttention 코드에 맞추기 등.
+
+## 다음에 재개할 첫 단계
+①이 "다음"을 지시하면 ② tokenizer를 진행한다.
+1. 테스트 파일명을 `test_p1_01_tokenizer.py`로 바꾼다.
+2. starter 진행 안내를 붙이고 힌트에서 정답이 새지 않는지 점검한다.
+3. README 12항목을 쓰고 실험 기록을 남긴 뒤 푸시한다.

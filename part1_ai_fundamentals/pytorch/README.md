@@ -144,30 +144,68 @@ python part1_ai_fundamentals/pytorch/run_demo.py --impl solution
 
 ## 8. 예상 결과
 
-아래는 이 저장소의 클라우드 환경(**CPU**, torch 2.x)에서 `solution`으로 실제 실행한 출력입니다.
+아래는 이 저장소의 클라우드 환경(**CPU**, Python 3.12.13, torch 2.15.0+cu132)에서 `solution`으로 실제 실행한 출력입니다.
 학습 시간·GPU 수치는 사용자 PC(RTX 3070)에서 측정해 [experiments 기록](../../experiments/P1-04-20261109-pytorch-basics/README.md)에 채웁니다.
 
 `python part1_ai_fundamentals/pytorch/run_demo.py --impl solution`
 
 ```text
-RUN_DEMO_OUTPUT
+[device] cpu
+[GD] w=2.0000 (정답 2.0), b=-1.0000 (정답 -1.0), loss 2.3878 -> 0.000000
+[MyLinear]  loss 0.6794 -> 0.000106
+[nn.Linear] loss 0.6794 -> 0.000106
+[weight] learned=
+tensor([[ 0.6610,  0.2675,  0.0621],
+        [ 0.6208, -0.4519, -0.1656]])
+ true=
+tensor([[ 0.6614,  0.2669,  0.0617],
+        [ 0.6213, -0.4519, -0.1661]])
+[time] 1.71s
 ```
 
 `pytest part1_ai_fundamentals/pytorch`
 
 ```text
-PYTEST_SOLUTION_OUTPUT
+..........                                                               [100%]
+10 passed in 2.72s
+```
+
+`python part1_ai_fundamentals/pytorch/starter.py` (아무것도 채우지 않은 상태)
+
+```text
+[미구현] TODO 1  get_device (Level 1)
+[미구현] TODO 2  normalize_rows (Level 1)
+[미구현] TODO 3  linear_forward (Level 1)
+[미구현] TODO 4  mse_loss (Level 2)
+[미구현] TODO 5  manual_mse_grads (Level 2)
+[미구현] TODO 6  train_linear_regression_gd (Level 2)
+[미구현] TODO 7  MyLinear.__init__ (Level 3)
+[미구현] TODO 8  MyLinear.forward (Level 3)
+[미구현] TODO 9  ToyRegressionDataset (Level 3)
+[미구현] TODO 10 train_model (Level 3)
+
+남은 TODO 10개 — 위에서부터 순서대로 채우세요. 채운 뒤 검사:
+  (bash)       IMPL=starter pytest part1_ai_fundamentals/pytorch
+  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/pytorch; Remove-Item Env:IMPL
 ```
 
 `IMPL=starter pytest part1_ai_fundamentals/pytorch -rs` (아무것도 채우지 않은 상태)
 
 ```text
-PYTEST_STARTER_OUTPUT
+ssssssssss                                                               [100%]
+...
+SKIPPED [1] part1_ai_fundamentals/pytorch/tests/test_p1_04_pytorch.py:5: TODO 미구현: TODO 1
+SKIPPED [1] part1_ai_fundamentals/pytorch/tests/test_p1_04_pytorch.py:11: TODO 미구현: TODO 2
+SKIPPED [1] part1_ai_fundamentals/pytorch/tests/test_p1_04_pytorch.py:20: TODO 미구현: TODO 2
+... (SKIPPED 10개)
+10 skipped in 1.62s
 ```
 
 **해석**
 - GD 결과 `w ≈ 2`, `b ≈ -1`: 데이터를 만든 식 `y = 2x − 1`을 그대로 복원했습니다.
 - `MyLinear`와 `nn.Linear`의 loss 기록이 같은 이유: 같은 초기값·같은 셔플 순서(seed)·같은 연산이기 때문입니다.
+- `[time]`은 CPU에서 30 epoch × 2개 모델을 학습한 시간입니다. 실행할 때마다 조금씩 다릅니다.
+- `starter.py`의 상태 표시는 앞 TODO에 의존합니다(예: TODO 6은 TODO 4의 `mse_loss`를 씀). 위에서부터 채우세요.
 - 학습된 `weight`가 `true_weight`와 거의 같고 오차는 잡음(표준편차 0.01) 수준입니다.
 
 ## 9. 자주 나는 오류

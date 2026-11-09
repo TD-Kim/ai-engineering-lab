@@ -189,10 +189,10 @@ def _report_progress() -> None:
     for name, fn in checks:
         try:
             fn()
-            print(f"[완료]   solution")
+            print(f"[완료]   {name}")
         except NotImplementedError:
             remaining += 1
-            print(f"[미구현] solution")
+            print(f"[미구현] {name}")
     if remaining:
         print(f"\n남은 TODO {remaining}개 — 위에서부터 순서대로 채우세요. 채운 뒤 검사:")
         print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/pytorch")

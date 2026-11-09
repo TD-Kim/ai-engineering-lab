@@ -1,0 +1,16 @@
+# Part 3 — RAG
+# 선행: torch (cu128 인덱스에서 별도 설치)
+-r base.txt
+sentence-transformers>=3.0
+faiss-cpu>=1.8       # Windows: faiss-cpu 사용
+chromadb>=0.5
+rank-bm25>=0.2.2     # 직접 구현한 BM25와 비교
+pypdf>=4.0
+scikit-learn>=1.4
+
+# --- Hybrid Search 프레임워크 비교 (W15에서 설치) ---
+langchain>=0.2
+langchain-community>=0.2
+llama-index-core>=0.11
+llama-index-retrievers-bm25>=0.2
+haystack-ai>=2.3

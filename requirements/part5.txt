@@ -1,0 +1,6 @@
+# Part 5 — Fine-tuning
+# 선행: torch (cu128 인덱스에서 별도 설치), requirements/part2.txt, part3.txt
+-r base.txt
+peft>=0.12
+bitsandbytes>=0.45   # Windows 공식 휠 제공. 설치 전 PyPI에서 최신 버전 확인
+trl>=0.9

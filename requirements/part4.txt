@@ -1,0 +1,6 @@
+# Part 4 — GraphRAG
+# Neo4j 서버는 Docker 또는 Neo4j Desktop으로 별도 실행 (참고 저장소와 다른 DB 사용)
+-r base.txt
+neo4j>=5.20
+neo4j-graphrag>=1.0
+networkx>=3.3        # Python 그래프 탐색 결과 검증용

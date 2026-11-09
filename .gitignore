@@ -1,0 +1,79 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+*.so
+
+# ===== uv / 가상환경 =====
+.venv/
+venv/
+env/
+.python-version.local
+
+# ===== 테스트·도구 캐시 =====
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ===== 환경 변수·비밀 =====
+.env
+.env.*
+!.env.example
+
+# ===== Java / Gradle / Maven =====
+.gradle/
+out/
+target/
+*.class
+*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+*.log
+
+# ===== IDE / OS =====
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 모델 가중치·체크포인트 =====
+*.pt
+*.pth
+*.bin
+*.ckpt
+*.safetensors
+*.gguf
+*.onnx
+checkpoints/
+/models/
+/outputs/
+**/outputs/
+runs/
+wandb/
+lora_adapters/
+
+# ===== 데이터 캐시·인덱스 =====
+.cache/
+hf_cache/
+*.faiss
+*.index
+chroma/
+chroma_db/
+neo4j_data/
+datasets/raw/
+datasets/processed/
+datasets/**/*.parquet
+datasets/**/*.zip
+
+# 실험 결과 중 대용량 산출물 (요약 CSV·그림은 커밋)
+experiments/**/artifacts/

@@ -1,0 +1,5 @@
+# Part 1 — AI 원리
+# 선행: torch (cu128 인덱스에서 별도 설치)
+-r base.txt
+tokenizers>=0.19     # 직접 구현한 BPE와 비교
+gensim>=4.3          # 직접 구현한 Word2Vec과 비교 (Python 3.12 휠 사용)

@@ -1,0 +1,7 @@
+# Part 2 — LLM 학습 원리
+# 선행: torch (cu128 인덱스에서 별도 설치)
+-r base.txt
+transformers>=4.44
+datasets>=2.20
+accelerate>=0.33
+peft>=0.12           # LoRA 직접 구현과 비교

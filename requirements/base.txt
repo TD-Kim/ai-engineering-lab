@@ -1,0 +1,6 @@
+# 공통 의존성 (Part 0)
+# PyTorch는 여기에 넣지 않는다 → docs/ENVIRONMENT.md 의 cu128 설치 명령 사용
+numpy>=1.26
+pandas>=2.2
+matplotlib>=3.8
+tqdm>=4.66

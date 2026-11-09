@@ -1,0 +1,4 @@
+# 개발·테스트 도구
+pytest>=8.0
+ruff>=0.5
+ipykernel>=6.29

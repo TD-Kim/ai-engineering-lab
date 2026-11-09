@@ -194,7 +194,8 @@ python part1_ai_fundamentals/tokenizer/run_demo.py --impl solution
 | 청크에 `�` 가 보임 | 토큰 번호 일부를 `decode` 함 | offsets로 **원문**을 자른다 |
 | 오버랩 청크에서 무한 반복 | `overlap >= max_tokens` → 시작점이 앞으로 안 감 | `ValueError`로 막고, 다음 시작이 안 나아가면 `end`에서 이어 간다 |
 | 겹침 0인데 이어 붙이면 원문보다 김 | 글자 중간에서 잘라 같은 글자가 두 조각에 들어감 | `snap_chunk_end`·`snap_next_start`로 경계를 맞춘다 |
-| 테스트가 "10초 안에 끝나지 않음"으로 실패 | 다음 `start`가 앞으로 나아가지 않음 | `snap_next_start`의 반환값을 `start`로 쓴다 |
+| 테스트가 "snap_chunk_end 가 N번 넘게 불림"으로 실패 | 다음 `start`가 앞으로 나아가지 않음(무한 반복) | `snap_next_start`의 반환값을 `start`로 쓴다 |
+| "마지막 조각이 직전 조각의 꼬리에 완전히 포함됨" | 마지막 토큰을 담은 뒤에도 반복을 계속함 | `end == len(offsets)`이면 멈춘다 |
 | 조각을 다시 세면 `max_tokens`보다 큼 | 토큰 수는 **원문 전체 인코딩** 기준. 조각만 따로 인코딩하면 경계 병합이 달라짐 | 임베딩 모델 한도에 딱 맞추지 말고 여유를 둔다 |
 | 비용이 0으로 나옴 | 모델 ID 오타 | 모르는 모델은 `KeyError` |
 | `count_with_claude.py`가 `건너뜀` | `.env`에 `ANTHROPIC_API_KEY` 없음 | `cp .env.example .env`(PowerShell: `Copy-Item .env.example .env`) 후 키 입력(커밋 금지, `.gitignore` 등록됨) |

@@ -4,7 +4,6 @@
 """
 import importlib.util
 import itertools
-import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -57,31 +56,42 @@ def test_estimate_cost(impl):
 
 
 # --- TODO 4 ---------------------------------------------------------------
-def _chunk(impl, tok, text, max_tokens, overlap, timeout=10.0):
-    """chunk_by_tokens 를 시간 제한을 두고 부른다. 시작점이 앞으로 안 나아가는 구현이면 멈추는 대신 실패 메시지를 낸다.
+class _NoProgress(Exception):
+    pass
 
-    (Windows 에서도 동작하도록 signal 대신 스레드 사용. 시간 초과 시 그 스레드는 daemon 으로 버려진다.)
+
+def _chunk(impl, tok, text, max_tokens, overlap):
+    """chunk_by_tokens 를 부르되, 무한 반복이면 멈추거나 메모리를 쓰는 대신 즉시 실패시킨다.
+
+    방법: impl 모듈의 제공 함수 snap_chunk_end 를 잠시 감싸 호출 횟수를 센다. 조각마다 한 번 불리고
+    start 는 매번 최소 1 토큰 나아가야 하므로, 호출이 "토큰 수 + 1" 번을 넘으면 start 가 앞으로 나아가지 않는 것이다.
+    (스레드·시간 제한 없이 동작해 Windows/Linux 모두 같고, 반복이 바로 끊겨 조각 목록이 커지지 않는다.)
     """
-    box = {}
-
-    def run():
-        try:
-            box["value"] = impl.chunk_by_tokens(tok, text, max_tokens=max_tokens, overlap=overlap)
-        except BaseException as e:  # noqa: BLE001  호출한 쪽에서 그대로 다시 낸다
-            box["error"] = e
-
-    t = threading.Thread(target=run, daemon=True)
-    t.start()
-    t.join(timeout)
-    if t.is_alive():
-        pytest.fail(f"chunk_by_tokens 가 {timeout}초 안에 끝나지 않음 — 다음 조각 시작(start)이 앞으로 나아가는지 확인하세요")
-    if "error" in box:
-        raise box["error"]
-    chunks = box["value"]
     n_tokens = len(tok.encode(text).ids)
+    original = impl.snap_chunk_end
+    calls = 0
+
+    def counted(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls > n_tokens + 1:
+            raise _NoProgress
+        return original(*args, **kwargs)
+
+    impl.snap_chunk_end = counted
+    try:
+        chunks = impl.chunk_by_tokens(tok, text, max_tokens=max_tokens, overlap=overlap)
+    except _NoProgress:
+        pytest.fail(
+            f"snap_chunk_end 가 {n_tokens + 1}번 넘게 불림 — 다음 조각 시작(start)이 앞으로 나아가지 않습니다"
+            " (start = snap_next_start(...) 의 반환값을 쓰는지 확인하세요)"
+        )
+    finally:
+        impl.snap_chunk_end = original
     # 조각 수 상한: 시작점이 매번 최소 1 토큰은 나아가므로 조각 수는 토큰 수를 넘을 수 없다.
     assert len(chunks) <= max(1, n_tokens), f"조각 {len(chunks)}개 > 토큰 {n_tokens}개 — 같은 위치를 반복해서 자르고 있습니다"
     return chunks
+
 
 def _token_spans(tok, text, chunk):
     """chunk 가 원문의 어느 토큰 구간인지 찾아 토큰 수를 센다(원문 전체 인코딩 기준)."""
@@ -119,6 +129,17 @@ def test_chunk_by_tokens_overlap_increases_total(impl, tok, corpus):
     ov = _chunk(impl, tok, corpus, 100, 25)
     assert len(ov) > len(no)
     assert sum(len(c) for c in ov) > len(corpus)
+
+
+def test_chunk_by_tokens_last_chunk_not_contained_in_previous(impl, tok, corpus):
+    # 종료 조건 검사: 마지막 토큰을 담은 뒤에도 계속 돌면, 직전 조각의 꼬리(겹침 부분)만 담은 조각이 하나 더 생긴다.
+    for max_tokens, overlap in [(100, 25), (37, 10), (7, 3)]:
+        chunks = _chunk(impl, tok, corpus, max_tokens, overlap)
+        assert len(chunks) >= 2
+        assert not chunks[-2].endswith(chunks[-1]), (
+            f"max_tokens={max_tokens}, overlap={overlap}: 마지막 조각이 직전 조각의 꼬리에 완전히 포함됨"
+            " — 마지막 토큰까지 담았으면(end == len(offsets)) 멈추세요"
+        )
 
 
 def test_chunk_by_tokens_edge_cases(impl, tok):

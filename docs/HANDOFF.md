@@ -16,7 +16,7 @@
 | 실습 | 메인 | 선택 과제(advanced/) |
 |---|---|---|
 | P1-04 pytorch | 그대로 유지(③ PASS_WITH_NOTES). 사용자가 starter.py 를 직접 채움(a4fdc61) | — |
-| P1-01 tokenizer | **새로 작성(3단계)**. TODO 5개: 토큰 수, 한/영 비교, 비용 추정, 토큰 예산 청크(오버랩), 컨텍스트 맞춤. solution 12 passed / starter 11 skipped + 1 passed(가짜 Claude 클라이언트 테스트, impl 무관). README 12항목 + 서비스 관점, experiments/P1-01-20261109-tokenizer | P1-01A: BPE 직접 구현(기존) |
+| P1-01 tokenizer | **새로 작성(3단계)**. TODO 5개: 토큰 수, 한/영 비교, 비용 추정, 토큰 예산 청크(오버랩), 컨텍스트 맞춤. solution 13 passed / starter 12 skipped + 1 passed(가짜 Claude 클라이언트 테스트, impl 무관). README 12항목 + 서비스 관점, experiments/P1-01-20261109-tokenizer | P1-01A: BPE 직접 구현(기존) |
 | P1-02 embedding | 자리표시 README(메인 작성 예정) | P1-02A(기존) |
 | P1-03 word2vec | 자리표시 README(메인: 개념 + gensim 짧은 실행 예정) | P1-03A(기존) |
 | P1-05 transformer | 자리표시 README(메인 작성 예정) | P1-05A(기존) |
@@ -37,7 +37,7 @@
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 88 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- 루트 `pytest`: 89 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
 - ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 1건이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다.
 
 ## 환경 메모
@@ -52,7 +52,9 @@
 - `.env.example` 추가와 안내.
 - 출력 단가가 비싼 이유 정정: 토큰당 연산량은 비슷, 입력은 병렬 prefill·출력은 순차 decode → 처리량 차이.
 - TODO 4 가볍게: 글자 경계·과대 글자·무한 반복 방지를 제공 함수 `snap_chunk_end`·`snap_next_start`로 분리. 학습자는 start/end/overlap 이동만. TODO 총 5개 유지.
-- 청크 테스트에 시간 제한(스레드 10초)과 조각 수 상한 → 무한 반복 구현은 멈추지 않고 실패 메시지.
+- 청크 테스트 무한 반복 가드: (a8d675d 의 스레드 10초 가드는 버려진 스레드가 메모리를 계속 써서 폐기) → 테스트가 impl 의 제공 함수 `snap_chunk_end`를 감싸 호출이 "토큰 수 + 1"번을 넘으면 즉시 실패. 변이 `start = start`로 0.3초·최대 RSS 47MB 에 실패 메시지 확인. 플랫폼 무관.
+- 종료 조건 테스트 추가: overlap>0 에서 마지막 조각이 직전 조각 꼬리에 완전히 포함되지 않음(break 제거 변이로 실패 확인).
+- `.env.example` OPENAI_API_KEY 주석: Part 1 P1-02(Embedding) 이후 사용.
 - HINT 1 문구를 "글자 경계를 확인하지 않고 decode 하면 한글이 깨질 수 있음"으로 조건 명시.
 
 ## 다음에 재개할 첫 단계

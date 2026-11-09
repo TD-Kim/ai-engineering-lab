@@ -11,7 +11,7 @@ import pytest
 
 LAB_DIR = Path(__file__).resolve().parents[1]
 CORPUS = LAB_DIR.parent / "data" / "corpus_ko_en.txt"
-# Sennrich et al. (2016) 논문 §3.2 의 예시 어휘
+# Sennrich et al. (2016) §3.2 Algorithm 1 의 예시 어휘 (논문 원문 병합 목록과의 대조는 미확인)
 TOY = "low " * 5 + "lower " * 2 + "newest " * 6 + "widest " * 3
 
 
@@ -69,8 +69,13 @@ def test_merge_pair_non_overlapping(impl):
 
 def test_train_bpe_matches_paper_example(impl):
     merges = impl.train_bpe(TOY, num_merges=4)
-    # 논문 예시와 같은 첫 병합들: es, est, est</w>, lo (동점은 사전순)
+    # 예시 어휘로 이 구현을 실행한 첫 병합들: es, est, est</w>, lo (동점은 사전순)
     assert merges == [("e", "s"), ("es", "t"), ("est", "</w>"), ("l", "o")]
+
+
+def test_train_bpe_tie_break_is_lexicographic(impl):
+    # (z,y) 와 (a,b) 는 둘 다 1 번. max(삽입 순서)라면 먼저 나온 (z,y), 사전순 규칙이면 (a,b)
+    assert impl.train_bpe("zy ab", num_merges=1) == [("a", "b")]
 
 
 def test_bpe_tokenize_uses_merges(impl):
@@ -78,6 +83,22 @@ def test_bpe_tokenize_uses_merges(impl):
     assert tok.tokenize_word("newest") == ["newest</w>"]  # 자주 나온 단어는 통째로 하나의 토큰
     # 학습 때 없던 단어도 서브워드로 분절된다 (OOV 해결)
     assert tok.tokenize_word("lowest") == ["low", "est</w>"]
+
+
+def test_tokenize_word_reproduces_training_segmentation(impl):
+    """TODO 9: 병합 규칙을 rank(학습 순서)대로 다시 적용해야 학습 때와 같은 분절이 나온다."""
+    text = CORPUS.read_text(encoding="utf-8")
+    tok = impl.BPETokenizer().fit(text, num_merges=200)
+    # 순서에 민감한 단어: rank 를 거꾸로 적용하거나 왼쪽부터 아무 쌍이나 병합하면 결과가 달라진다
+    assert tok.tokenize_word("me") == ["me</w>"]
+    assert tok.tokenize_word("different") == ["di", "ff", "er", "ent</w>"]
+    # 학습 말뭉치의 모든 단어: 학습 때 merge_pair 로 만든 분절 결과와 같아야 한다
+    vocab = impl.build_word_vocab(text)
+    for pair in tok.merges:
+        vocab = impl.merge_pair(pair, vocab)
+    for symbols in vocab:
+        word = "".join(symbols).removesuffix("</w>")
+        assert tok.tokenize_word(word) == list(symbols), word
 
 
 def test_bpe_vocab_has_special_tokens(impl):

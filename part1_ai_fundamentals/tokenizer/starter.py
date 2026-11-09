@@ -11,6 +11,7 @@ REF: Sennrich et al., 2016, "Neural Machine Translation of Rare Words with Subwo
 from __future__ import annotations
 
 from collections import Counter
+from itertools import pairwise  # noqa: F401  (TODO 6, 9 에서 사용)
 
 PAD, UNK, BOS, EOS = "<pad>", "<unk>", "<bos>", "<eos>"
 SPECIAL_TOKENS = [PAD, UNK, BOS, EOS]  # id 0, 1, 2, 3 로 고정
@@ -40,7 +41,7 @@ class Vocab:
         self.id_to_token: list[str] = []  # 리스트: id 가 0 부터 빈틈없이 이어지므로 dict 보다 단순
 
     @classmethod
-    def build(cls, tokens: list[str], min_freq: int = 1) -> "Vocab":
+    def build(cls, tokens: list[str], min_freq: int = 1) -> Vocab:
         # TODO 2: 특수 토큰(SPECIAL_TOKENS)을 앞에, 그 뒤에 min_freq 이상 토큰을 "빈도 내림차순, 동점은 사전순"으로 놓아
         #         vocab.id_to_token / vocab.token_to_id 를 채운 Vocab 을 반환하세요.
         # HINT 1: 입력 tokens 에 특수 토큰 문자열이 섞여 있어도 중복으로 넣지 않아야 합니다.
@@ -99,7 +100,7 @@ def get_pair_counts(vocab: dict[Word, int]) -> Counter[Pair]:
     """인접한 기호 쌍의 등장 횟수(단어 빈도 가중)를 센다."""
     # TODO 6: 모든 단어의 인접 기호 쌍을 세세요. 단어 빈도만큼 가중합니다.
     # HINT 1: 단어 경계를 넘는 쌍은 만들지 않습니다(단어 하나 안에서만).
-    # HINT 2: zip(symbols, symbols[1:]) 로 인접 쌍을 순회, Counter 에 freq 를 더합니다.
+    # HINT 2: itertools.pairwise(symbols) 로 인접 쌍을 순회하고, Counter 에 freq 를 더합니다.
     # WHY: 빈도 가중을 빼면 "한 번 나온 긴 단어"의 쌍이 "천 번 나온 짧은 단어"와 같은 비중이 됩니다.
     # REF: Sennrich et al., 2016, "Neural Machine Translation of Rare Words with Subword Units", §3.2
     raise NotImplementedError("TODO 6")
@@ -117,13 +118,14 @@ def merge_pair(pair: Pair, vocab: dict[Word, int]) -> dict[Word, int]:
 
 def train_bpe(text: str, num_merges: int) -> list[Pair]:
     """BPE 병합 규칙을 학습해 순서대로 반환한다."""
-    vocab = build_word_vocab(text)
+    vocab = build_word_vocab(text)  # noqa: F841  (TODO 8 에서 사용)
     merges: list[Pair] = []
     for _ in range(num_merges):
         # TODO 8: 가장 빈도가 높은 쌍을 골라 병합하고 merges 에 추가하세요. 쌍이 없으면 반복을 멈춥니다.
         # HINT 1: 동점이면 사전순으로 가장 앞선 쌍을 골라 결과를 결정적으로 만드세요.
         # HINT 2: min(pairs.items(), key=...) 에 (빈도의 음수, 쌍) 튜플 키를 쓰면 한 번에 고를 수 있습니다.
-        # WHY: 동점 처리를 정하지 않으면 실행 환경에 따라 병합 순서가 달라져 재현이 안 됩니다.
+        # WHY: 동점 처리를 정하지 않으면 dict 삽입 순서(=말뭉치에서 단어가 나온 순서)에 따라 동점 선택이 달라져,
+        #      같은 단어 집합이라도 문장 순서만 바꾸면 다른 병합 규칙이 나옵니다.
         # REF: Sennrich et al., 2016, §3.2 (Algorithm 1)
         raise NotImplementedError("TODO 8")
     return merges
@@ -135,7 +137,7 @@ class BPETokenizer:
         self.ranks: dict[Pair, int] = {}
         self.vocab = Vocab()
 
-    def fit(self, text: str, num_merges: int) -> "BPETokenizer":
+    def fit(self, text: str, num_merges: int) -> BPETokenizer:
         """(제공) 병합 규칙을 학습하고 어휘(특수 토큰 + 기본 문자 + 병합 결과)를 만든다."""
         self.merges = train_bpe(text, num_merges)
         # rank 가 낮을수록 먼저 학습된(=더 자주 나온) 병합이다.
@@ -182,7 +184,9 @@ _TOY = "low " * 5 + "lower " * 2 + "newest " * 6 + "widest " * 3
 
 
 def _report_progress() -> None:
-    vocab_checks = lambda: Vocab.build(["a", "b", "a"])  # noqa: E731
+    def vocab_checks():
+        return Vocab.build(["a", "b", "a"])
+
     checks = [
         ("TODO 1  tokenize (Level 1)", lambda: tokenize("a b")),
         ("TODO 2  Vocab.build (Level 1)", vocab_checks),

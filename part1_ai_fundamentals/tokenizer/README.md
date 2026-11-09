@@ -66,7 +66,7 @@ flowchart LR
 
 **바이트 단위 BPE와의 차이**
 이 실습은 **문자 단위**에서 시작합니다(한글 한 글자 = 기본 기호 하나). GPT-2 등은 UTF-8 **바이트 단위**에서 시작해 기본 어휘가 256개로 고정되고 `<unk>`가 원리적으로 생기지 않습니다.
-대신 한글 한 글자가 3바이트라서 병합 전에는 시퀀스가 더 깁니다(이 말뭉치는 2,492자, 3,518바이트). → 과제 4.
+대신 한글 한 글자가 3바이트라서 병합 전에는 시퀀스가 더 깁니다(이 말뭉치의 단어들은 1,988자, 3,014바이트). → 과제 4.
 
 ## 5. 수식 · 손으로 따라가는 BPE
 
@@ -78,7 +78,7 @@ $$
 
 동점이면 사전순으로 가장 앞선 쌍을 고릅니다(TODO 8). 압축률은 `문자 수 / 토큰 수`로 정의합니다.
 
-**예시 말뭉치** (Sennrich et al., 2016, §3.2 예시): `low` ×5, `lower` ×2, `newest` ×6, `widest` ×3
+**예시 말뭉치**: Sennrich et al., 2016, §3.2 Algorithm 1 의 예시 어휘(`low` ×5, `lower` ×2, `newest` ×6, `widest` ×3)로 **이 저장소의 구현을 실행한** 첫 병합들입니다. 논문 원문의 병합 목록과 일일이 대조하지는 않았습니다(미확인).
 
 | 단계 | 빈도 상위 쌍 (빈도) | 선택 | 병합 후 단어 상태 |
 |---|---|---|---|
@@ -177,18 +177,18 @@ REF는 Sennrich et al., 2016, "Neural Machine Translation of Rare Words with Sub
 `pytest part1_ai_fundamentals/tokenizer` (solution)
 
 ```text
-.............                                                            [100%]
-13 passed in 0.34s
+...............                                                          [100%]
+15 passed in 0.46s
 ```
 
 `IMPL=starter pytest part1_ai_fundamentals/tokenizer -rs` (아무것도 채우지 않은 상태, 앞부분만)
 
 ```text
-sssssssssssss                                                            [100%]
+sssssssssssssss                                                          [100%]
 SKIPPED [1] part1_ai_fundamentals/tokenizer/tests/test_p1_01_tokenizer.py:18: TODO 미구현: TODO 1
 SKIPPED [1] part1_ai_fundamentals/tokenizer/tests/test_p1_01_tokenizer.py:25: TODO 미구현: TODO 2
 ...
-13 skipped in 0.08s
+15 skipped in 0.09s
 ```
 
 `python part1_ai_fundamentals/tokenizer/compare_with_hf.py --impl solution --merges 200`

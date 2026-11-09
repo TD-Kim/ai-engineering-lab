@@ -10,6 +10,7 @@ REF: Sennrich et al., 2016, "Neural Machine Translation of Rare Words with Subwo
 from __future__ import annotations
 
 from collections import Counter
+from itertools import pairwise
 
 PAD, UNK, BOS, EOS = "<pad>", "<unk>", "<bos>", "<eos>"
 SPECIAL_TOKENS = [PAD, UNK, BOS, EOS]  # id 0, 1, 2, 3 로 고정
@@ -42,7 +43,7 @@ class Vocab:
         self.id_to_token: list[str] = []  # 리스트: id 가 0 부터 빈틈없이 이어지므로 dict 보다 단순
 
     @classmethod
-    def build(cls, tokens: list[str], min_freq: int = 1) -> "Vocab":
+    def build(cls, tokens: list[str], min_freq: int = 1) -> Vocab:
         # TODO 2
         counts = Counter(tokens)
         # 빈도 내림차순, 동점은 사전순 → 실행할 때마다 같은 ID (재현성).
@@ -116,7 +117,7 @@ def get_pair_counts(vocab: dict[Word, int]) -> Counter[Pair]:
     pairs: Counter[Pair] = Counter()
     for symbols, freq in vocab.items():
         # 단어 안에서만 쌍을 만든다: 단어 경계를 넘는 병합을 막아 "단어 내부" 서브워드만 학습한다.
-        for a, b in zip(symbols, symbols[1:]):
+        for a, b in pairwise(symbols):
             # 단어가 freq 번 등장했으므로 그 안의 쌍도 freq 번 등장한 것으로 센다.
             pairs[(a, b)] += freq
     return pairs
@@ -154,7 +155,8 @@ def train_bpe(text: str, num_merges: int) -> list[Pair]:
         if not pairs:
             break  # 모든 단어가 기호 하나가 되면 더 병합할 쌍이 없다.
         # 빈도 최대 쌍, 동점이면 사전순으로 가장 앞선 쌍.
-        # 왜: max() 는 동점일 때 "먼저 본 것"을 고르는데, 그 순서는 dict 삽입 순서에 달려 결과가 흔들릴 수 있다.
+        # 왜: max() 는 동점일 때 "먼저 본 것"을 고른다. 그 순서는 dict 삽입 순서, 즉 말뭉치에서 단어가 나온 순서에 따라 달라진다.
+        #     예: "zy ab" 에서 (z,y) 와 (a,b) 는 둘 다 1 번 → max 는 (z,y), 사전순 규칙은 (a,b).
         best = min(pairs.items(), key=lambda kv: (-kv[1], kv[0]))[0]
         vocab = merge_pair(best, vocab)
         merges.append(best)
@@ -167,7 +169,7 @@ class BPETokenizer:
         self.ranks: dict[Pair, int] = {}
         self.vocab = Vocab()
 
-    def fit(self, text: str, num_merges: int) -> "BPETokenizer":
+    def fit(self, text: str, num_merges: int) -> BPETokenizer:
         """(제공) 병합 규칙을 학습하고 어휘(특수 토큰 + 기본 문자 + 병합 결과)를 만든다."""
         self.merges = train_bpe(text, num_merges)
         # rank 가 낮을수록 먼저 학습된(=더 자주 나온) 병합이다.
@@ -192,7 +194,7 @@ class BPETokenizer:
             # 현재 인접 쌍 중 rank 가 가장 낮은(가장 먼저 학습된) 쌍을 찾는다.
             candidates = [
                 (self.ranks[pair], i)
-                for i, pair in enumerate(zip(symbols, symbols[1:]))
+                for i, pair in enumerate(pairwise(symbols))
                 if pair in self.ranks
             ]
             if not candidates:
@@ -223,7 +225,9 @@ _TOY = "low " * 5 + "lower " * 2 + "newest " * 6 + "widest " * 3
 
 
 def _report_progress() -> None:
-    vocab_checks = lambda: Vocab.build(["a", "b", "a"])  # noqa: E731
+    def vocab_checks():
+        return Vocab.build(["a", "b", "a"])
+
     checks = [
         ("TODO 1  tokenize (Level 1)", lambda: tokenize("a b")),
         ("TODO 2  Vocab.build (Level 1)", vocab_checks),

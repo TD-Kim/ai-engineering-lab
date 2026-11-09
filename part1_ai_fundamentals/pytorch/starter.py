@@ -164,7 +164,8 @@ def train_model(
             # TODO 10: 한 배치에 대한 학습 단계를 구현하고 loss 변수를 만드세요.
             # HINT 1: 기울기 초기화 → 순전파 → loss → 역전파 → 파라미터 갱신 순서입니다.
             # HINT 2: optimizer 의 '초기화'·'갱신' 메서드, TODO 4 의 mse_loss, Tensor.backward(). 결과를 loss 변수에 담으세요.
-            # WHY: zero_grad 를 빼면 기울기가 누적되고, step 을 backward 보다 먼저 하면 이전 배치 기울기로 갱신됩니다.
+            # WHY: zero_grad 를 빼면 이전 배치 기울기가 계속 더해집니다. step 을 backward 보다 먼저 부르면,
+            #      표준 순서(zero_grad 먼저)에서는 기울기가 0(또는 None)이라 그 배치에서 파라미터가 갱신되지 않습니다.
             # REF: https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
             raise NotImplementedError("TODO 10")
             total += loss.item() * xb.shape[0]  # noqa: F821

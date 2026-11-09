@@ -8,7 +8,7 @@
 | 순서 | 실습 | 상태 | 비고 |
 |---|---|---|---|
 | ① | P1-04 pytorch | **완료(③ PASS_WITH_NOTES, 권장 수정 반영)** | 테스트 10개 통과(solution) / starter 10 skip. noqa, skip 사유 설명, 진행 순서 표기 반영. REF 링크는 pytorch.org 차단으로 미확인 |
-| ② | P1-01 tokenizer | **완료(검증 대기)** | Level 1(TODO 1~5: tokenize·Vocab·특수 토큰·pad/truncate), Level 2(TODO 6~10: BPE), Level 3(compare_with_hf.py). 테스트 13개 통과(solution) / starter 13 skip. README 12항목, experiments/P1-01-20261109-bpe |
+| ② | P1-01 tokenizer | **완료(③ PASS_WITH_NOTES, 수정 반영·재검증 대기)** | Level 1(TODO 1~5: tokenize·Vocab·특수 토큰·pad/truncate), Level 2(TODO 6~10: BPE), Level 3(compare_with_hf.py). 테스트 15개 통과(solution) / starter 15 skip (TODO 8 동점·TODO 9 rank 순서 검사 포함). README 12항목, experiments/P1-01-20261109-bpe |
 | ③ | P1-02 embedding | 코드 초안만 있음 | 테스트 통과(solution). 테스트 파일명 변경, README, 데모, 힌트 점검 필요 |
 | ④ | P1-03 word2vec | 코드 초안만 있음 | **루트 `pytest`에서 `test_training_reduces_loss_and_groups_words[cbow]` 실패**(purity 0.33 < 0.6). CBOW 학습 설정(epoch·lr, 양쪽 문맥만 쓰는 예제 수 부족) 조정 필요 |
 | ⑤ | P1-05 transformer | solution.py만 있음 | starter, tests, train.py, visualize_attention.py, compare_with_torch.py, README 필요 |

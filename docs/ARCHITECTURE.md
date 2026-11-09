@@ -130,61 +130,56 @@ impl = importlib.import_module(os.environ.get("IMPL", "solution"))  # IMPL=start
 
 ### 예시: Scaled Dot-Product Self-Attention (TODO 7~9)
 
+[part1_ai_fundamentals/transformer](../part1_ai_fundamentals/transformer/README.md)의 `SelfAttention.forward`에서 발췌한 것입니다.
+마스크 규약은 bool이며 **True(1) = 볼 수 있음, False(0) = 가림**입니다(`padding_mask`는 1 = 실제 토큰, 0 = 패딩).
+한 query 행의 key가 전부 가려지면 softmax(−∞, …) = NaN이 됩니다. 이 문제와 해결법은 transformer README 9절에 있고, 테스트 `test_fully_masked_row_gives_nan`이 재현합니다.
+
 `starter.py`
 
 ```python
-def scaled_dot_product_attention(q, k, v, mask=None):
-    """q, k, v: (batch, heads, seq_len, d_k)"""
-    d_k = q.size(-1)
+        # TODO 7: 어텐션 점수 scores (B, T, T) 를 계산하세요.
+        # HINT 1: 각 query 와 모든 key 의 유사도를 내적으로 구하고 크기를 보정합니다.
+        # HINT 2: k 의 마지막 두 차원을 바꾼 뒤 행렬곱 → (B, T, T). math.sqrt, Tensor.transpose
+        # WHY: d_k 가 크면 내적 값의 분산이 커져 softmax 가 한쪽으로 포화되고 기울기가 매우 작아집니다.
+        # REF: Vaswani et al., 2017, "Attention Is All You Need", §3.2.1
+        raise NotImplementedError("TODO 7")  # ← 이 줄을 지우고 scores 를 만드세요
 
-    # TODO 7: 어텐션 점수(scores)를 계산하세요.
-    # HINT 1: 각 query와 모든 key의 유사도를 내적으로 구하고 크기를 보정합니다.
-    # HINT 2: k의 마지막 두 차원을 바꾼 뒤 행렬곱 → (batch, heads, seq_len, seq_len). torch.matmul, Tensor.transpose
-    # WHY: d_k가 크면 내적 값의 분산이 커져 softmax가 한쪽으로 포화되고 기울기가 매우 작아집니다.
-    # REF: Vaswani et al., 2017, "Attention Is All You Need", §3.2.1
-    raise NotImplementedError
+        # TODO 8: mask 가 있으면 가려야 할 위치(False)의 점수를 -inf 로 바꾸세요.
+        # HINT 1: softmax 이후 그 위치의 가중치가 정확히 0 이 되어야 합니다.
+        # HINT 2: Tensor.masked_fill(조건, 값) — 조건은 "가릴 위치" 이므로 mask 를 뒤집어야 합니다(~).
+        # WHY: 한 query 행 전체가 가려지면 softmax(-inf, …) = NaN 이 됩니다(README 9절). 마스크 설계 때 이 경우를 피해야 합니다.
+        # REF: Vaswani et al., 2017, §3.2.3
+        if mask is not None:
+            raise NotImplementedError("TODO 8")
 
-    # TODO 8: mask가 주어지면 가려야 할 위치의 점수를 매우 작은 값으로 바꾸세요.
-    # HINT 1: mask == 0 인 위치가 softmax 이후 0이 되도록 만듭니다.
-    # HINT 2: Tensor.masked_fill, 채울 값은 float("-inf") 또는 매우 큰 음수
-    # WHY: 디코더에서 미래 토큰을 보면 학습 때만 정답을 "엿보는" 누수가 생겨 추론 성능이 무너집니다.
-    # REF: Vaswani et al., 2017, "Attention Is All You Need", §3.2.3
-
-    # TODO 9: softmax로 가중치를 만들고 value의 가중합을 반환하세요.
-    # HINT 1: 마지막 차원(key 축)에 대해 확률 분포가 되어야 합니다.
-    # HINT 2: torch.softmax(..., dim=-1) → (batch, heads, seq_len, seq_len), 이어서 v와 행렬곱 → (batch, heads, seq_len, d_k)
-    # WHY: 잘못된 dim으로 softmax를 하면 각 query의 가중치 합이 1이 되지 않아 출력 스케일이 깨집니다.
-    # REF: Vaswani et al., 2017, "Attention Is All You Need", §3.2.1
+        # TODO 9: softmax 로 가중치 weights (B, T, T) 를 만들고 dropout 을 적용한 뒤, value 의 가중합 context (B, T, d_k) 를 구하세요.
+        # HINT 1: 마지막 차원(key 축)에 대해 확률 분포가 되어야 합니다.
+        # HINT 2: torch.softmax(..., dim=-1), self.dropout, 행렬곱 (B, T, T) @ (B, T, d_k)
+        # WHY: 잘못된 dim 으로 softmax 를 하면 각 query 의 가중치 합이 1 이 되지 않아 출력 스케일이 깨집니다.
+        # REF: Vaswani et al., 2017, §3.2.1
+        raise NotImplementedError("TODO 9")  # ← 이 줄을 지우고 weights, context 를 만드세요
 ```
 
 `solution.py`
 
 ```python
-import math
+        # TODO 7  REF: Vaswani et al., 2017, "Attention Is All You Need", §3.2.1
+        # (B, T, d_k) @ (B, d_k, T) -> (B, T, T)
+        # 왜 sqrt(d_k) 로 나누나: q, k 의 각 성분이 평균 0·분산 1 이면 내적의 분산은 d_k 이다.
+        # d_k 가 크면 점수 차이가 너무 커져 softmax 가 one-hot 에 가깝게 포화되고 기울기가 거의 0 이 된다.
+        scores = q @ k.transpose(-2, -1) / math.sqrt(self.d_k)
 
-import torch
+        # TODO 8  REF: Vaswani et al., 2017, §3.2.3
+        # -inf 는 softmax 후 정확히 0 → 가려진 위치는 가중합에 전혀 기여하지 않는다.
+        if mask is not None:
+            scores = scores.masked_fill(~mask, float("-inf"))
 
-
-def scaled_dot_product_attention(q, k, v, mask=None):
-    """q, k, v: (batch, heads, seq_len, d_k)"""
-    d_k = q.size(-1)
-
-    # TODO 7  REF: Vaswani et al., 2017, §3.2.1
-    # (B, H, T, d_k) @ (B, H, d_k, T) -> (B, H, T, T)
-    # sqrt(d_k)로 나누는 이유: 내적의 분산이 d_k에 비례해 커지는 것을 상쇄해 softmax 포화를 막는다.
-    scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_k)
-
-    # TODO 8  REF: Vaswani et al., 2017, §3.2.3
-    # mask: (T, T) 또는 (B, 1, T, T) — 브로드캐스팅으로 scores와 맞춘다.
-    # -inf는 softmax 후 정확히 0이 되어 가려진 위치가 가중합에 기여하지 않는다.
-    if mask is not None:
-        scores = scores.masked_fill(mask == 0, float("-inf"))
-
-    # TODO 9  REF: Vaswani et al., 2017, §3.2.1
-    # dim=-1: 각 query 행마다 key 축 확률 분포 (B, H, T, T)
-    weights = torch.softmax(scores, dim=-1)
-    # (B, H, T, T) @ (B, H, T, d_k) -> (B, H, T, d_k)
-    return torch.matmul(weights, v)
+        # TODO 9  REF: Vaswani et al., 2017, §3.2.1
+        # softmax 의 역할: 점수를 "합이 1 인 양수 가중치"로 바꿔, 출력이 value 들의 볼록 결합(가중 평균)이 되게 한다.
+        # dim=-1 (key 축): 각 query 행마다 확률 분포. dim 을 틀리면 행 합이 1 이 아니다.
+        weights = torch.softmax(scores, dim=-1)  # (B, T, T)
+        weights = self.dropout(weights)
+        context = weights @ v  # (B, T, T) @ (B, T, d_k) -> (B, T, d_k)
 ```
 
 ## 5. 실험 기록 구조

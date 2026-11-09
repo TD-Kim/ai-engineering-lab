@@ -1,11 +1,18 @@
 """P1-05 Transformer — 정답 코드.
 
-Level 1: Single-head Self-Attention (TODO 1~10)
-Level 2: Multi-Head Attention, FFN, Positional Encoding, Transformer Block(Residual + LayerNorm) (TODO 11~19)
-Level 3: 문자 단위 미니 언어모델 조립·학습·생성 (TODO 20~23),
-         nn.MultiheadAttention / F.scaled_dot_product_attention 과 비교 → compare_with_torch.py
+Level 1: Q/K/V 선형 층, 스케일드 닷-프로덕트 어텐션, causal·padding 마스크 (TODO 1~10, SelfAttention)
+Level 2: Multi-Head Attention(헤드 분할·합치기), Feed Forward, 위치 인코딩(sinusoidal),
+         Residual + LayerNorm 으로 Encoder 블록 조립 (TODO 11~19)
+Level 3: 문자 단위 미니 언어모델 조립·학습·생성 (TODO 20~23)
+         → train_tiny.py(학습·손실 곡선), visualize_attention.py(어텐션 가중치 그림),
+           compare_with_torch.py(nn.MultiheadAttention / F.scaled_dot_product_attention 과 같은 가중치로 비교)
 
-마스크 규약: bool 텐서, True = "볼 수 있음(attend)", False = "가림".
+진행 확인: python part1_ai_fundamentals/transformer/solution.py
+
+마스크 규약: bool 텐서, True(1) = "볼 수 있음(attend)", False(0) = "가림".
+  - padding_mask: (B, T), 1 = 실제 토큰, 0 = 패딩 (P1-01 tokenizer 의 attention_mask 와 같은 뜻)
+  - causal: i 번째 query 는 j <= i 인 key 만 본다.
+  - 주의: 한 query 행의 key 가 전부 가려지면 그 행은 softmax(-inf, ..., -inf) = NaN 이 된다(README 9절, 테스트로 재현).
 shape 기호: B = batch, T = 시퀀스 길이, D = d_model, H = head 수, d_k = D / H, V = 어휘 크기
 
 REF: Vaswani et al., 2017, "Attention Is All You Need"
@@ -53,7 +60,7 @@ class SelfAttention(nn.Module):
         causal: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """x: (B, T, D), padding_mask: (B, T) bool(True=실제 토큰) -> (out (B, T, D), weights (B, T, T))"""
-        B, T, _ = x.shape
+        T = x.shape[1]  # (B, T, D) 중 시퀀스 길이만 필요(causal 마스크 크기)
 
         # TODO 4  REF: Vaswani et al., 2017, §3.2.1
         q = self.W_q(x)  # (B, T, d_k)
@@ -229,6 +236,10 @@ class TransformerBlock(nn.Module):
         return x
 
 
+# 이 저장소의 Encoder 블록 = TransformerBlock (causal=False 면 인코더, True 면 GPT 식 디코더 전용 블록으로 쓴다)
+EncoderBlock = TransformerBlock
+
+
 # ---------------------------------------------------------------------------
 # Level 3 — 문자 단위 미니 언어모델 (TODO 20~23)
 # ---------------------------------------------------------------------------
@@ -318,3 +329,112 @@ def get_batch(data: torch.Tensor, block_size: int, batch_size: int, generator=No
     x = torch.stack([data[s : s + block_size] for s in starts])
     y = torch.stack([data[s + 1 : s + block_size + 1] for s in starts])
     return x, y
+
+
+def count_parameters(model: nn.Module) -> int:
+    """학습되는 파라미터 수 (buffer 인 위치 인코딩 표는 제외)."""
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def train_lm(
+    text: str,
+    steps: int = 300,
+    d_model: int = 64,
+    num_heads: int = 4,
+    num_layers: int = 2,
+    block_size: int = 64,
+    batch_size: int = 32,
+    lr: float = 3e-3,
+    eval_every: int = 50,
+    seed: int = 0,
+    device: torch.device | None = None,
+) -> dict:
+    """(제공) 문자 단위 언어모델 학습. 앞 90% 로 학습하고 뒤 10% 로 검증 손실을 잰다.
+
+    반환: {"model", "vocab", "history": [(step, train_loss, val_loss)], "params", "seconds", "device"}
+    """
+    import time
+
+    torch.manual_seed(seed)
+    device = device or get_device()
+    vocab = CharVocab(text)
+    data = torch.tensor(vocab.encode(text), dtype=torch.long)
+    split = int(len(data) * 0.9)
+    train_data, val_data = data[:split], data[split:]
+    model = MiniTransformerLM(len(vocab), d_model, num_heads, num_layers, max_len=block_size).to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    gen = torch.Generator().manual_seed(seed)
+
+    @torch.no_grad()
+    def evaluate(split_data: torch.Tensor) -> float:
+        model.eval()
+        eval_gen = torch.Generator().manual_seed(1234)  # 같은 위치로 평가해 step 간 비교가 가능하게
+        x, y = get_batch(split_data, min(block_size, len(split_data) - 2), 32, generator=eval_gen)
+        loss = model.loss(x.to(device), y.to(device)).item()
+        model.train()
+        return loss
+
+    history = [(0, evaluate(train_data), evaluate(val_data))]
+    start = time.perf_counter()
+    for step in range(1, steps + 1):
+        x, y = get_batch(train_data, block_size, batch_size, generator=gen)
+        loss = model.loss(x.to(device), y.to(device))
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        if step % eval_every == 0 or step == steps:
+            history.append((step, evaluate(train_data), evaluate(val_data)))
+    return {
+        "model": model,
+        "vocab": vocab,
+        "history": history,
+        "params": count_parameters(model),
+        "seconds": time.perf_counter() - start,
+        "device": device,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 단독 실행: 어느 TODO 가 남았는지 알려 준다.
+# ---------------------------------------------------------------------------
+def _report_progress() -> None:
+    torch.manual_seed(0)
+    x = torch.randn(2, 5, 8)
+    ids = torch.randint(0, 10, (2, 5))
+
+    def lm():
+        return MiniTransformerLM(10, d_model=8, num_heads=2, num_layers=1, max_len=16)
+
+    checks = [
+        ("TODO 1~3   SelfAttention.__init__ — Q/K/V·출력 투영, dropout (Level 1)", lambda: SelfAttention(8)),
+        ("TODO 4~10  SelfAttention.forward — 투영·마스크·점수·softmax·가중합 (Level 1)", lambda: SelfAttention(8)(x, causal=True)),
+        ("TODO 11    MultiHeadAttention.__init__ (Level 2)", lambda: MultiHeadAttention(8, 2)),
+        ("TODO 12~14 MultiHeadAttention.forward — 헤드 분할·어텐션·합치기 (Level 2)", lambda: MultiHeadAttention(8, 2)(x)),
+        ("TODO 15    FeedForward (Level 2)", lambda: FeedForward(8)(x)),
+        ("TODO 16    PositionalEncoding.__init__ (Level 2)", lambda: PositionalEncoding(8, 16)),
+        ("TODO 17    PositionalEncoding.forward (Level 2)", lambda: PositionalEncoding(8, 16)(x)),
+        ("TODO 18    TransformerBlock.__init__ (Level 2)", lambda: TransformerBlock(8, 2)),
+        ("TODO 19    TransformerBlock.forward — Residual + LayerNorm (Level 2)", lambda: TransformerBlock(8, 2)(x)),
+        ("TODO 20    MiniTransformerLM.__init__ (Level 3)", lm),
+        ("TODO 21    MiniTransformerLM.forward (Level 3)", lambda: lm()(ids)),
+        ("TODO 22    MiniTransformerLM.loss (Level 3)", lambda: lm().loss(ids, ids)),
+        ("TODO 23    MiniTransformerLM.generate (Level 3)", lambda: lm().generate(ids[:, :2], 3)),
+    ]
+    remaining = 0
+    for name, fn in checks:
+        try:
+            fn()
+            print(f"[완료]   {name}")
+        except NotImplementedError as exc:
+            remaining += 1
+            print(f"[미구현] {name}  ← 처음 막힌 곳: {exc}")
+    if remaining:
+        print(f"\n남은 항목 {remaining}개 — 위에서부터 순서대로 채우세요(뒤 TODO 는 앞 TODO 를 사용합니다). 채운 뒤 검사:")
+        print("  (bash)       IMPL=starter pytest part1_ai_fundamentals/transformer")
+        print('  (PowerShell) $env:IMPL="starter"; pytest part1_ai_fundamentals/transformer; Remove-Item Env:IMPL')
+    else:
+        print("\n모든 TODO 가 구현되었습니다. 이제 pytest 로 정답 여부를 확인하세요.")
+
+
+if __name__ == "__main__":
+    _report_progress()

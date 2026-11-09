@@ -16,7 +16,9 @@ from __future__ import annotations
 from tokenizers import Tokenizer, decoders, models, pre_tokenizers, trainers
 
 # 개념: 토큰 단가(USD / 100만 토큰). API 는 "글자 수"가 아니라 "토큰 수"로 요금을 매기고, 입력과 출력 단가가 다르다.
-#       출력이 보통 5 배 비싸다 — 모델이 한 토큰씩 생성하는 데 더 많은 계산이 들기 때문이다.
+#       출력 단가가 입력의 5 배다. 토큰 하나를 처리하는 연산량은 입력·출력이 비슷하지만,
+#       입력은 한 번에 병렬로 처리하고(prefill) 출력은 앞 토큰이 나와야 다음 토큰을 만드는 식으로 한 토큰씩 순서대로 생성한다(decode).
+#       그래서 같은 하드웨어에서 출력 쪽 처리량(초당 토큰)이 훨씬 낮고, 그만큼 토큰당 가격이 비싸다.
 # 서비스 관점: 같은 질문이라도 모델 선택에 따라 비용이 수십 배 차이 난다. 단가는 바뀌므로 코드에 박지 말고 설정으로 관리한다.
 # REF: https://platform.claude.com/docs/en/about-claude/pricing  (작성 시점 2026-10 기준, 사용 전 공식 페이지에서 재확인)
 PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
@@ -113,6 +115,39 @@ def is_char_boundary(offsets: list[tuple[int, int]], i: int) -> bool:
     return i == 0 or i >= len(offsets) or offsets[i][0] >= offsets[i - 1][1]
 
 
+def snap_chunk_end(offsets: list[tuple[int, int]], start: int, end: int) -> int:
+    """조각 [start, end) 의 끝 end 를 글자 경계로 맞춘다. 반환값은 항상 start 보다 크다.
+
+    개념: end 가 글자 중간이면 한 칸씩 앞으로 당긴다(예산을 넘지 않게).
+          당기다가 start 까지 와 버리면 = 글자를 쪼개지 않고는 자를 곳이 예산 안에 없다
+          (예: 한 글자가 토큰 3 개인데 예산 2). 이때는 뒤로 늘려 그 최소 덩어리를 통째로 담는다 → 이 조각만 예산을 넘는다.
+    WHY: start 보다 큰 값을 보장해야 조각이 비지 않고 반복이 반드시 앞으로 나아간다.
+    """
+    end = min(end, len(offsets))
+    cut = end
+    while cut > start and not is_char_boundary(offsets, cut):
+        cut -= 1
+    if cut > start:
+        return cut
+    cut = start + 1
+    while not is_char_boundary(offsets, cut):
+        cut += 1
+    return cut
+
+
+def snap_next_start(offsets: list[tuple[int, int]], start: int, end: int, overlap: int) -> int:
+    """다음 조각의 시작 = end - overlap 을 글자 경계로 맞춘 값. 반환값은 항상 start 보다 크다.
+
+    개념: 겹칠 부분의 시작이 글자 중간이면 앞으로 당긴다(겹침이 조금 늘어날 수 있음).
+          당기다가 이전 조각의 start 이하가 되면 앞으로 나아가지 못해 같은 조각을 영원히 반복하게 되므로,
+          그때는 겹치지 않고 end 에서 이어 간다.
+    """
+    nxt = end - overlap
+    while nxt > start and not is_char_boundary(offsets, nxt):
+        nxt -= 1
+    return nxt if nxt > start else end
+
+
 # ---------------------------------------------------------------------------
 # TODO 4 — 토큰 예산으로 청크 나누기 (오버랩 포함)
 # ---------------------------------------------------------------------------
@@ -120,16 +155,19 @@ def chunk_by_tokens(tokenizer: Tokenizer, text: str, max_tokens: int, overlap: i
     """text 를 토큰 max_tokens 개 이하의 조각으로 나눈다. 이웃 조각은 토큰 약 overlap 개를 겹친다.
 
     토큰 수는 "원문 전체를 한 번 인코딩한 결과" 기준이다. 조각만 따로 다시 인코딩하면 경계에서 몇 토큰 달라질 수 있다.
-    글자를 쪼개지 않고는 자를 곳이 없을 때만(한 글자가 토큰 3 개인데 max_tokens=2 등) 그 최소 덩어리 하나로 된 조각이 예산을 넘는다.
-    예) '토크나이저' 에서 토큰 하나가 '크' 의 끝 바이트와 '나' 의 첫 바이트를 함께 담으면 '크나' 는 따로 자를 수 없다.
+    글자를 쪼개지 않고는 자를 곳이 없을 때만 그 최소 덩어리 하나로 된 조각이 예산을 넘는다(snap_chunk_end).
     """
-    # TODO 4: text 를 토큰 max_tokens 개 이하 조각으로 나누고, 이웃 조각이 토큰 약 overlap 개를 겹치게 하세요.
-    #         max_tokens <= 0 이거나 overlap 이 0 이상 max_tokens 미만이 아니면 ValueError. 빈 텍스트면 [].
-    # 개념: 다음 조각은 (max_tokens - overlap) 토큰 뒤에서 시작한다 → 앞 조각의 끝 overlap 토큰이 다시 들어간다.
-    # HINT 1: offsets = tokenizer.encode(text).offsets 를 구하고, 토큰 번호 start ~ end(포함 안 함)를 원문
-    #         text[offsets[start][0] : offsets[end - 1][1]] 로 자릅니다(토큰을 decode 하면 한글이 깨질 수 있음).
-    # HINT 2: end 나 다음 start 가 글자 중간이면(is_char_boundary 가 False) 앞으로 한 칸씩 당기세요.
-    #         글자 하나가 max_tokens 보다 길면 그 글자를 통째로 담고, 다음 시작이 앞으로 못 가면 end 에서 이어 가세요(무한 반복 방지).
+    if max_tokens <= 0 or not 0 <= overlap < max_tokens:
+        # overlap >= max_tokens 면 다음 조각 시작점이 앞으로 가지 않는다.
+        raise ValueError("need max_tokens > 0 and 0 <= overlap < max_tokens")
+    offsets = tokenizer.encode(text).offsets  # noqa: F841 (TODO 4 에서 사용) [(시작 글자 위치, 끝 글자 위치), ...] 토큰마다 하나
+    # TODO 4: 토큰 번호 start ~ end(포함 안 함)를 한 조각으로 하여, start 를 0 부터 옮겨 가며 조각 목록을 만드세요.
+    #         (인자 검사와 offsets 는 위에서 제공. 글자 경계·무한 반복 방지는 제공 함수 snap_chunk_end / snap_next_start 가 처리)
+    # 개념: 다음 조각은 end - overlap 에서 시작한다 → 앞 조각의 끝 overlap 토큰이 다시 들어간다.
+    # HINT 1: 조각 글자는 원문에서 text[offsets[start][0] : offsets[end - 1][1]] 로 자릅니다.
+    #         (글자 경계를 확인하지 않고 토큰 번호 일부를 decode 하면 한글이 깨질 수 있음)
+    # HINT 2: end = snap_chunk_end(offsets, start, start + max_tokens), 마지막 토큰까지 담았으면(end == len(offsets)) 멈추고,
+    #         아니면 start = snap_next_start(offsets, start, end, overlap).
     # WHY(오버랩): 문장이 경계에서 잘려도 겹친 부분 덕에 검색된 조각만으로 뜻이 이어진다.
     # 서비스 관점: 조각이 작으면 검색은 정밀하지만 문맥이 부족하고, 크면 프롬프트 토큰(=비용·지연)이 는다.
     #             오버랩은 저장·임베딩 비용을 대략 max_tokens / (max_tokens - overlap) 배 늘린다(Part 3 P3-02).

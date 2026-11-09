@@ -4,6 +4,7 @@
 """
 import importlib.util
 import itertools
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -56,6 +57,32 @@ def test_estimate_cost(impl):
 
 
 # --- TODO 4 ---------------------------------------------------------------
+def _chunk(impl, tok, text, max_tokens, overlap, timeout=10.0):
+    """chunk_by_tokens 를 시간 제한을 두고 부른다. 시작점이 앞으로 안 나아가는 구현이면 멈추는 대신 실패 메시지를 낸다.
+
+    (Windows 에서도 동작하도록 signal 대신 스레드 사용. 시간 초과 시 그 스레드는 daemon 으로 버려진다.)
+    """
+    box = {}
+
+    def run():
+        try:
+            box["value"] = impl.chunk_by_tokens(tok, text, max_tokens=max_tokens, overlap=overlap)
+        except BaseException as e:  # noqa: BLE001  호출한 쪽에서 그대로 다시 낸다
+            box["error"] = e
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        pytest.fail(f"chunk_by_tokens 가 {timeout}초 안에 끝나지 않음 — 다음 조각 시작(start)이 앞으로 나아가는지 확인하세요")
+    if "error" in box:
+        raise box["error"]
+    chunks = box["value"]
+    n_tokens = len(tok.encode(text).ids)
+    # 조각 수 상한: 시작점이 매번 최소 1 토큰은 나아가므로 조각 수는 토큰 수를 넘을 수 없다.
+    assert len(chunks) <= max(1, n_tokens), f"조각 {len(chunks)}개 > 토큰 {n_tokens}개 — 같은 위치를 반복해서 자르고 있습니다"
+    return chunks
+
 def _token_spans(tok, text, chunk):
     """chunk 가 원문의 어느 토큰 구간인지 찾아 토큰 수를 센다(원문 전체 인코딩 기준)."""
     start = text.index(chunk)
@@ -65,7 +92,7 @@ def _token_spans(tok, text, chunk):
 
 @pytest.mark.parametrize("max_tokens,overlap", [(200, 0), (50, 10), (7, 2), (3, 1)])
 def test_chunk_by_tokens_budget_and_overlap(impl, tok, corpus, max_tokens, overlap):
-    chunks = impl.chunk_by_tokens(tok, corpus, max_tokens=max_tokens, overlap=overlap)
+    chunks = _chunk(impl, tok, corpus, max_tokens, overlap)
     assert chunks and all(c for c in chunks)
     assert chunks[0] == corpus[: len(chunks[0])]          # 처음부터 시작
     assert corpus.endswith(chunks[-1])                    # 끝까지 담음
@@ -83,21 +110,21 @@ def test_chunk_by_tokens_budget_and_overlap(impl, tok, corpus, max_tokens, overl
 
 
 def test_chunk_by_tokens_no_overlap_reconstructs(impl, tok, corpus):
-    chunks = impl.chunk_by_tokens(tok, corpus, max_tokens=37, overlap=0)
+    chunks = _chunk(impl, tok, corpus, 37, 0)
     assert "".join(chunks) == corpus                       # 겹침 0 이면 이어 붙여 원문 복원(글자 중복·누락 없음)
 
 
 def test_chunk_by_tokens_overlap_increases_total(impl, tok, corpus):
-    no = impl.chunk_by_tokens(tok, corpus, max_tokens=100, overlap=0)
-    ov = impl.chunk_by_tokens(tok, corpus, max_tokens=100, overlap=25)
+    no = _chunk(impl, tok, corpus, 100, 0)
+    ov = _chunk(impl, tok, corpus, 100, 25)
     assert len(ov) > len(no)
     assert sum(len(c) for c in ov) > len(corpus)
 
 
 def test_chunk_by_tokens_edge_cases(impl, tok):
-    assert impl.chunk_by_tokens(tok, "", 10, 2) == []
-    assert impl.chunk_by_tokens(tok, "hello", 100, 0) == ["hello"]
-    assert "".join(impl.chunk_by_tokens(tok, "토토토 😀", 1, 0)) == "토토토 😀"  # 글자 하나가 예산보다 커도 멈추고 글자를 쪼개지 않음
+    assert _chunk(impl, tok, "", 10, 2) == []
+    assert _chunk(impl, tok, "hello", 100, 0) == ["hello"]
+    assert "".join(_chunk(impl, tok, "토토토 😀", 1, 0)) == "토토토 😀"  # 글자 하나가 예산보다 커도 멈추고 글자를 쪼개지 않음
     for bad in [(0, 0), (5, 5), (5, -1)]:
         with pytest.raises(ValueError):
             impl.chunk_by_tokens(tok, "hello world", *bad)

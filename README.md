@@ -19,6 +19,12 @@ AI 서비스 개발자로서 **RAG·GraphRAG 서비스를 설계하고 판단하
 
 설치 절차는 [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)를 보세요.
 
+API 키는 저장소 루트 `.env`에만 둡니다(커밋 금지). 템플릿을 복사해 값을 채우세요.
+
+```powershell
+Copy-Item .env.example .env   # bash: cp .env.example .env
+```
+
 ## 로드맵 한눈에 보기
 
 방향: **개념은 깊게, 구현은 얕게 — 서비스 설계 중심.** 원리 직접 구현은 각 실습의 `advanced/` 선택 과제로 둔다.

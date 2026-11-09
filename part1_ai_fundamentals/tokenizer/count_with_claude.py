@@ -3,7 +3,8 @@
 로컬 BPE(solution.py)는 원리를 보여 주는 작은 토크나이저다. 실제 요금은 Claude 의 토크나이저로 센 토큰으로 매겨지므로,
 비용을 정확히 잡으려면 messages.count_tokens 로 그 모델 기준 토큰 수를 받아야 한다(모델을 실행하지 않고 개수만 돌려준다).
 
-준비: pip install -r requirements/part1.txt   그리고 저장소 루트 .env 에  ANTHROPIC_API_KEY=...  (커밋 금지)
+준비: pip install -r requirements/part1.txt
+      cp .env.example .env (PowerShell: Copy-Item .env.example .env) 후 ANTHROPIC_API_KEY 입력 (커밋 금지)
 실행: python part1_ai_fundamentals/tokenizer/count_with_claude.py
 모델 변경: .env 또는 환경 변수 LLM_MODEL (기본 claude-opus-5-5)
 

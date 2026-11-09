@@ -71,13 +71,14 @@
 
 - `토`(3바이트)는 합쳐진 적이 없어 **토큰 3개**이고, 셋 다 offsets `(0, 1)`로 같은 글자를 가리킵니다.
 - `¬ë`는 `크`의 마지막 바이트와 `나`의 첫 바이트를 **함께** 담아 offsets가 `(1, 3)`입니다.
-- 그래서 토큰 번호 일부만 `decode`하면 바이트가 잘려 `�`(깨진 글자)가 나올 수 있습니다. 이 실습은 토큰 대신 **offsets로 원문을 잘라** 글자를 지킵니다(제공 함수 `is_char_boundary`).
+- 그래서 토큰 번호 일부만 `decode`하면 바이트가 잘려 `�`(깨진 글자)가 나올 수 있습니다. 이 실습은 토큰 대신 **offsets로 원문을 잘라** 글자를 지킵니다(제공 함수 `is_char_boundary`·`snap_chunk_end`·`snap_next_start`).
 
 ## 서비스 관점
 
 | 질문 | 토큰으로 본 답 |
 |---|---|
 | 요청 1건 비용은? | (입력 토큰 × 입력 단가 + 출력 토큰 × 출력 단가) / 1,000,000. 출력 단가가 입력의 5배 |
+| 출력은 왜 비싼가? | 토큰당 연산량은 입력·출력이 비슷하다. 다만 입력은 한 번에 병렬로 처리(prefill)하고 출력은 한 토큰씩 순서대로 생성(decode)하므로, 같은 하드웨어에서 출력의 처리량(초당 토큰)이 낮다 → 답 길이(`max_tokens`)가 비용·지연을 좌우한다 |
 | 한국어 서비스는 비용이 다른가? | 같은 뜻이라도 토크나이저에 따라 토큰 수가 다르다. **가정하지 말고 그 모델로 잰다** |
 | RAG 비용은 어디서 커지나? | 검색 문서를 입력에 넣으므로 **입력 토큰**이 커진다 → 청크 크기 × 상위 k 개가 비용을 정한다 |
 | 청크는 몇 토큰으로? | 작으면 검색은 정밀하지만 문맥 부족, 크면 비용·지연 증가. 오버랩은 저장·임베딩 비용을 `max/(max−overlap)`배 늘린다 → Part 3 P3-02에서 측정 |
@@ -122,7 +123,8 @@ pytest part1_ai_fundamentals/tokenizer/tests
 # 4) 데모 (다운로드·API 키 불필요)
 python part1_ai_fundamentals/tokenizer/run_demo.py --impl starter
 
-# 5) (선택) Claude 기준 토큰 수 — 저장소 루트 .env 에 ANTHROPIC_API_KEY=... (커밋 금지)
+# 5) (선택) Claude 기준 토큰 수 — .env 를 만들고 ANTHROPIC_API_KEY 를 채운다 (커밋 금지)
+Copy-Item .env.example .env   # 처음 한 번. 이후 .env 에 키 입력
 python part1_ai_fundamentals/tokenizer/count_with_claude.py
 
 # 6) (선택) 공개 모델 토크나이저와 비교 — 인터넷 필요(tokenizer.json 만 받고 모델 가중치는 받지 않음)
@@ -133,6 +135,7 @@ python part1_ai_fundamentals/tokenizer/pretrained_tokenizer.py
 
 ```bash
 source .venv/bin/activate
+cp .env.example .env    # (선택 스크립트용, 처음 한 번) 이후 .env 에 키 입력
 python part1_ai_fundamentals/tokenizer/starter.py
 IMPL=starter pytest part1_ai_fundamentals/tokenizer/tests
 pytest part1_ai_fundamentals/tokenizer/tests
@@ -149,10 +152,10 @@ python part1_ai_fundamentals/tokenizer/run_demo.py --impl solution
 | 1 | `count_tokens` | 토큰 수 세기 | 모든 비용·예산 계산의 출발점 |
 | 2 | `compare_languages` | 언어별 문자 수 / 토큰 수 / 글자당 토큰 | 한국어 서비스 비용 보정 |
 | 3 | `estimate_cost` | 단가표로 비용 추정, 모르는 모델은 `KeyError` | 모델 선택, 월 예산 |
-| 4 | `chunk_by_tokens` | 토큰 예산 + 오버랩으로 청크, 글자 쪼개지 않기 | RAG 인덱싱(Part 3) |
+| 4 | `chunk_by_tokens` | start/end 를 옮기며 토큰 예산 + 오버랩으로 청크 (글자 경계·무한 반복 방지는 제공 함수) | RAG 인덱싱(Part 3) |
 | 5 | `fit_to_context` | 출력 몫을 뺀 예산만큼 앞부분 남기기 | 컨텍스트 초과 방지 |
 
-제공 코드: `train_local_tokenizer`(로컬 BPE 학습), `is_char_boundary`(토큰 i 앞에서 잘라도 글자가 안전한가), `PRICES_PER_MTOK`(단가표).
+제공 코드: `train_local_tokenizer`(로컬 BPE 학습), `is_char_boundary`(토큰 i 앞에서 잘라도 글자가 안전한가), `snap_chunk_end`(조각 끝을 글자 경계로 맞추고, 한 글자가 예산보다 크면 통째로 담음), `snap_next_start`(다음 시작을 글자 경계로 맞추고 반드시 앞으로 나아가게 함), `PRICES_PER_MTOK`(단가표).
 
 ## 8. 예상 결과
 
@@ -190,10 +193,11 @@ python part1_ai_fundamentals/tokenizer/run_demo.py --impl solution
 |---|---|---|
 | 청크에 `�` 가 보임 | 토큰 번호 일부를 `decode` 함 | offsets로 **원문**을 자른다 |
 | 오버랩 청크에서 무한 반복 | `overlap >= max_tokens` → 시작점이 앞으로 안 감 | `ValueError`로 막고, 다음 시작이 안 나아가면 `end`에서 이어 간다 |
-| 겹침 0인데 이어 붙이면 원문보다 김 | 글자 중간에서 잘라 같은 글자가 두 조각에 들어감 | `is_char_boundary`로 경계까지 당긴다 |
+| 겹침 0인데 이어 붙이면 원문보다 김 | 글자 중간에서 잘라 같은 글자가 두 조각에 들어감 | `snap_chunk_end`·`snap_next_start`로 경계를 맞춘다 |
+| 테스트가 "10초 안에 끝나지 않음"으로 실패 | 다음 `start`가 앞으로 나아가지 않음 | `snap_next_start`의 반환값을 `start`로 쓴다 |
 | 조각을 다시 세면 `max_tokens`보다 큼 | 토큰 수는 **원문 전체 인코딩** 기준. 조각만 따로 인코딩하면 경계 병합이 달라짐 | 임베딩 모델 한도에 딱 맞추지 말고 여유를 둔다 |
 | 비용이 0으로 나옴 | 모델 ID 오타 | 모르는 모델은 `KeyError` |
-| `count_with_claude.py`가 `건너뜀` | `.env`에 `ANTHROPIC_API_KEY` 없음 | 저장소 루트 `.env`에 추가(커밋 금지, `.gitignore` 등록됨) |
+| `count_with_claude.py`가 `건너뜀` | `.env`에 `ANTHROPIC_API_KEY` 없음 | `cp .env.example .env`(PowerShell: `Copy-Item .env.example .env`) 후 키 입력(커밋 금지, `.gitignore` 등록됨) |
 | PowerShell에서 한글이 깨짐 | 콘솔 인코딩 | `$env:PYTHONUTF8 = "1"` |
 
 ## 10. 과제

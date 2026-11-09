@@ -45,7 +45,15 @@
 - `.venv`: Python 3.12.13, numpy 2.5.4, gensim 4.4.0, tokenizers 0.23.3, anthropic 2.6.0, python-dotenv.
 
 ## 보류
-- Part 0 문서 수정: ENVIRONMENT 정정, REPOSITORY_ANALYSIS 실제 경로, `.env.example`·비용 안내, 실험 디렉터리 이름 통일 등.
+- Part 0 문서: REPOSITORY_ANALYSIS 실제 경로, 실험 디렉터리 이름 통일.
+- 정리됨: `.env.example`(ANTHROPIC_API_KEY·OPENAI_API_KEY 빈 값, LLM_MODEL, EMBEDDING_MODEL) 추가, 루트 README·ENVIRONMENT §2·P1-01 README §6 에 복사 안내.
+
+## ③ 검증 반영 (16ecd91 PASS_WITH_NOTES)
+- `.env.example` 추가와 안내.
+- 출력 단가가 비싼 이유 정정: 토큰당 연산량은 비슷, 입력은 병렬 prefill·출력은 순차 decode → 처리량 차이.
+- TODO 4 가볍게: 글자 경계·과대 글자·무한 반복 방지를 제공 함수 `snap_chunk_end`·`snap_next_start`로 분리. 학습자는 start/end/overlap 이동만. TODO 총 5개 유지.
+- 청크 테스트에 시간 제한(스레드 10초)과 조각 수 상한 → 무한 반복 구현은 멈추지 않고 실패 메시지.
+- HINT 1 문구를 "글자 경계를 확인하지 않고 decode 하면 한글이 깨질 수 있음"으로 조건 명시.
 
 ## 다음에 재개할 첫 단계
 사용자가 "다음"이라고 하면 P1-02 Embedding 메인 실습을 시작한다(①의 지시 확인 후).

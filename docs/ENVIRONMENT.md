@@ -34,7 +34,14 @@ uv pip install -r requirements/base.txt -r requirements/dev.txt
 
 # 5) Part별 의존성은 해당 Part를 시작할 때 설치
 uv pip install -r requirements/part1.txt
+
+# 6) API 키 파일 만들기 (값은 .env 에만, 커밋 금지)
+Copy-Item .env.example .env      # bash: cp .env.example .env
+notepad .env                      # ANTHROPIC_API_KEY=, OPENAI_API_KEY= 채우기
 ```
+
+- `.env`는 `.gitignore`에 등록되어 있다. 키를 `.env.example`이나 코드에 쓰지 않는다.
+- `.env.example`의 `LLM_MODEL`(기본 `claude-opus-5-5`)·`EMBEDDING_MODEL`(기본 `text-embedding-3-small`)로 모델을 바꾼다.
 
 - 3단계를 4·5단계보다 먼저 해야 한다. 다른 패키지가 의존성으로 CPU판 torch를 끌어오는 것을 막기 위해서다.
 - 설치 후 [GPU 검증](#5-gpu-검증-스크립트)을 실행해 `cuda available: True`를 확인한다.

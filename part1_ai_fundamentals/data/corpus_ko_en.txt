@@ -1,0 +1,48 @@
+오늘은 토크나이저를 직접 만들어 보는 날이다.
+토크나이저는 문장을 작은 조각으로 나누고 각 조각에 번호를 붙인다.
+번호만으로는 의미를 알 수 없기 때문에 모델은 번호를 벡터로 바꾼다.
+벡터로 바꾸면 비슷한 단어끼리 가까운 곳에 모일 수 있다.
+작은 모델이라도 직접 학습해 보면 원리가 잘 보인다.
+학습이 잘 되면 손실 값이 조금씩 줄어든다.
+손실 값이 줄지 않으면 학습률과 데이터부터 다시 확인한다.
+어텐션은 문장 안의 다른 단어를 얼마나 참고할지 정하는 방법이다.
+쿼리와 키를 곱해 점수를 만들고 소프트맥스로 확률을 만든다.
+그 확률로 값 벡터를 섞으면 문맥이 담긴 새로운 벡터가 된다.
+여러 개의 헤드를 쓰면 서로 다른 관계를 동시에 볼 수 있다.
+잔차 연결은 깊은 모델에서도 정보와 기울기가 잘 흐르게 돕는다.
+층 정규화는 값의 크기를 일정하게 맞춰 학습을 안정시킨다.
+위치 인코딩이 없으면 모델은 단어의 순서를 알 수 없다.
+나는 매일 아침 커피를 마시고 코드를 읽는다.
+비가 오는 날에는 집에서 논문을 천천히 읽는다.
+주말에는 공원에서 산책을 하고 저녁에는 실험 결과를 정리한다.
+실험 기록을 남기면 나중에 무엇이 달라졌는지 비교할 수 있다.
+같은 데이터와 같은 설정으로 비교해야 공정한 실험이 된다.
+그래픽 카드의 메모리가 부족하면 배치 크기를 줄인다.
+작은 문자 단위 언어 모델은 다음 글자를 예측하도록 학습한다.
+다음 글자를 잘 맞히려면 앞의 글자들을 잘 기억해야 한다.
+Today we build a tokenizer from scratch.
+A tokenizer splits a sentence into small pieces and gives each piece a number.
+A number alone carries no meaning, so the model turns each number into a vector.
+Similar words can end up close to each other in the vector space.
+Even a tiny model teaches a lot when you train it yourself.
+When training goes well, the loss goes down little by little.
+If the loss does not go down, check the learning rate and the data first.
+Attention decides how much each word should look at the other words.
+We multiply queries and keys to get scores and use softmax to get weights.
+Mixing the value vectors with those weights gives a new vector with context.
+Many heads can look at different relations at the same time.
+Residual connections help information and gradients flow through deep models.
+Layer normalization keeps the scale of values stable during training.
+Without positional encoding the model cannot know the order of words.
+I drink coffee every morning and read some code.
+On rainy days I stay home and read papers slowly.
+On weekends I take a walk in the park and organize my results in the evening.
+Writing down experiments helps me compare what changed later.
+A fair experiment uses the same data and the same settings.
+If the graphics card runs out of memory, I reduce the batch size.
+A small character level language model learns to predict the next character.
+To predict the next character well, it must remember the characters before it.
+the cat sat on the mat and the dog sat on the log.
+the cat likes the warm sun and the dog likes the long walk.
+a new word is made of smaller pieces such as low, lower, lowest, new, newer and newest.
+the lower the learning rate, the slower the training, but the newer models train faster.

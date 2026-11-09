@@ -128,5 +128,5 @@
 템플릿은 [experiments/README.md](../experiments/README.md).
 
 ### 6-5. 진행 상태
-[PROGRESS](PROGRESS.md)에서 `NOT_STARTED` / `IN_PROGRESS` / `COMPLETED` / `NEEDS_REVIEW`로 관리한다.
+[PROGRESS](PROGRESS.md)에서 `NOT_STARTED` / `IN_PROGRESS` / `COMPLETED` 세 가지로 관리한다.
 **학습자가 직접 확인한 것만 `COMPLETED`.**

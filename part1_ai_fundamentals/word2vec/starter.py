@@ -143,7 +143,7 @@ class SkipGramNegSampling(nn.Module):
     def __init__(self, vocab_size: int, dim: int):
         super().__init__()
         # TODO 6: self.in_embed (중심 단어용), self.out_embed (문맥 단어용) 두 nn.Embedding(V, D) 를 만들고 초기화하세요.
-        # HINT 1: 원 구현은 입력 테이블을 아주 작은 균등분포(±0.5/D), 출력 테이블을 0 으로 초기화합니다.
+        # HINT 1: 원 구현(C 코드 word2vec.c)은 입력 테이블을 아주 작은 균등분포(±0.5/D), 출력 테이블을 0 으로 초기화합니다.
         # HINT 2: nn.Embedding, nn.init.uniform_, nn.init.zeros_
         # WHY: 테이블을 하나만 쓰면 자기 자신과의 내적이 항상 커서 학습 신호가 왜곡됩니다.
         # REF: Mikolov et al., 2013b, §2.2

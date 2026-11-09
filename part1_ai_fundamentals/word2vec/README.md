@@ -190,18 +190,18 @@ REF는 다음 두 논문입니다.
 `pytest part1_ai_fundamentals/word2vec -rs` (solution)
 
 ```text
-..............                                                           [100%]
-14 passed in 7.46s
+.................                                                        [100%]
+17 passed in 6.30s
 ```
 
 `IMPL=starter pytest part1_ai_fundamentals/word2vec -rs` (아무것도 채우지 않은 상태, 앞부분)
 
 ```text
-ssssssssssssss                                                           [100%]
+sssssssssssssssss                                                        [100%]
 SKIPPED [1] part1_ai_fundamentals/word2vec/tests/test_p1_03_word2vec.py:17: TODO 미구현: TODO 1
 SKIPPED [1] part1_ai_fundamentals/word2vec/tests/test_p1_03_word2vec.py:26: TODO 미구현: TODO 2
 ...
-14 skipped in 1.95s
+17 skipped in 2.25s
 ```
 
 `python part1_ai_fundamentals/word2vec/run_demo.py --impl solution`
@@ -266,7 +266,7 @@ SKIPPED [1] part1_ai_fundamentals/word2vec/tests/test_p1_03_word2vec.py:26: TODO
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
-| **CBOW 테스트 실패: 그룹 순도 0.33 (기준 0.6)** — 이 저장소에서 실제로 겪은 문제 | ① 이전 구현은 **양쪽 문맥이 다 있는 위치만** 예제로 썼다. 생성 말뭉치 기준으로 그룹 단어(cat, car, apple)가 중심 단어로 나온 예제는 3,376개 중 335개뿐이었고, 4단어 과일 문장(`the apple is sweet`)에서는 예제가 하나도 나오지 않았다. ② 그룹 단어가 문맥으로만 나올 때는 다른 문맥 단어(`in`/`on`)가 정답을 이미 알려 줘서, 그룹 단어 벡터가 서로 모일 이유가 없었다. epoch(5→20)나 lr(0.01→0.05)을 바꿔도 0.33~0.39에 머물렀다 | **모든 위치**를 예제로 쓰고, 모자란 문맥은 `<pad>`로 채운 뒤 **마스크 평균**에서 뺀다(TODO 3, 8, 9). 수정 후 생성 말뭉치 그룹 순도: 5 epoch 0.69, 10 epoch 0.86 |
+| **CBOW 테스트 실패: 그룹 순도 0.33 (기준 0.6)** — 이 저장소에서 실제로 겪은 문제 | ① 이전 구현은 **양쪽 문맥이 다 있는 위치만** 예제로 썼다. 생성 말뭉치 기준으로 그룹 단어(cat, car, apple)가 중심 단어로 나온 예제는 3,376개 중 335개뿐이었고, 4단어 과일 문장(`the apple is sweet`)에서는 예제가 하나도 나오지 않았다. ② 그룹 단어가 문맥으로만 나올 때는 다른 문맥 단어(`in`/`on`)가 정답을 이미 알려 줘서, 그룹 단어 벡터가 서로 모일 이유가 없었다. epoch·lr만 바꾼 결과(이전 구현, 실측): 5ep/0.01 0.33, 10ep/0.01 0.39, 20ep/0.01 0.39, 30ep/0.01 0.42, 5ep/0.05 0.39, 10ep/0.05 0.36, 20ep/0.05 0.53. 가장 좋은 경우도 기준 0.6 미만이고, epoch를 4배(5→20)로 늘리면 학습 시간도 약 2~4배(0.06~0.11s → 0.25s) 늘었다. **하이퍼파라미터만으로는 부족** | **모든 위치**를 예제로 쓰고, 모자란 문맥은 `<pad>`로 채운 뒤 **마스크 평균**에서 뺀다(TODO 3, 8, 9). 수정 후 생성 말뭉치 그룹 순도: 5 epoch 0.69, 10 epoch 0.86 |
 | 다른 문장 단어가 문맥에 섞임 | 말뭉치를 한 줄로 이어 붙여 윈도우를 만듦 | 문장(줄) 단위로 `skipgram_pairs` 적용 |
 | `(cat, cat)` 같은 쌍이 생김 | `j == i` 제외 누락 | 자기 자신 제외 |
 | loss가 `inf` / `nan` | `torch.log(torch.sigmoid(x))`를 나눠 계산 | `F.logsigmoid` |

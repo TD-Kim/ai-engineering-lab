@@ -24,6 +24,12 @@ def test_build_vocab_sorted_by_frequency(impl):
     assert impl.build_vocab(sents, min_count=2)[1] == ["a", "b"]
 
 
+def test_build_vocab_tie_break_is_lexicographic_not_insertion_order(impl):
+    # 등장 순서(d → c)와 사전순(c → d)이 다른 입력: 동점이면 사전순이어야 한다
+    _, i2w, counts = impl.build_vocab([["d", "c"]])
+    assert i2w == ["c", "d"] and counts == [1, 1]
+
+
 def test_skipgram_pairs_respect_window_and_boundary(impl):
     pairs = impl.skipgram_pairs([10, 11, 12, 13], window=1)
     assert pairs == [(10, 11), (11, 10), (11, 12), (12, 11), (12, 13), (13, 12)]
@@ -87,16 +93,51 @@ def test_cbow_ignores_padding(impl):
     assert 0.5 * torch.log(torch.tensor(6.0)) < loss < 2 * torch.log(torch.tensor(6.0))  # 초기 loss ≈ log(V)
 
 
-def test_skipgram_batch_loss_matches_model_and_is_reproducible(impl):
+def _trained_like_skipgram(impl, vocab_size=8, dim=4):
+    """초기 상태(out_embed = 0)는 음성 샘플과 무관하게 loss 가 (K+1)·log 2 로 같다 → 무작위 값으로 바꿔 검사한다."""
     torch.manual_seed(0)
-    model = impl.SkipGramNegSampling(5, 3)
-    noise = impl.noise_distribution([5, 4, 3, 2, 1])
-    batch = [(0, 1), (2, 3), (4, 0)]
-    a = impl.skipgram_batch_loss(model, batch, noise, 2, torch.Generator().manual_seed(1), CPU)
-    b = impl.skipgram_batch_loss(model, batch, noise, 2, torch.Generator().manual_seed(1), CPU)
-    torch.testing.assert_close(a, b)
-    neg = impl.sample_negatives(noise, 3, 2, generator=torch.Generator().manual_seed(1))
-    torch.testing.assert_close(a, model(torch.tensor([0, 2, 4]), torch.tensor([1, 3, 0]), neg))
+    model = impl.SkipGramNegSampling(vocab_size, dim)
+    with torch.no_grad():
+        model.in_embed.weight.normal_()
+        model.out_embed.weight.normal_()
+    return model
+
+
+def test_skipgram_batch_loss_uses_generator(impl):
+    model = _trained_like_skipgram(impl)
+    noise = impl.noise_distribution([8, 7, 6, 5, 4, 3, 2, 1])
+    batch = [(0, 1), (2, 3), (4, 5), (6, 7)]
+
+    def loss(seed):
+        return impl.skipgram_batch_loss(model, batch, noise, 3, torch.Generator().manual_seed(seed), CPU)
+
+    torch.manual_seed(123)  # 전역 난수 상태를 바꿔도
+    a = loss(1)
+    torch.manual_seed(456)
+    b = loss(1)
+    torch.testing.assert_close(a, b)  # (a) 같은 generator 시드 → 같은 loss (generator 를 실제로 써야 통과)
+    assert not torch.allclose(a, loss(2))  # (a) 다른 시드 → 다른 음성 샘플 → 다른 loss
+    # 같은 시드로 뽑은 음성 샘플을 직접 넣으면 같은 값 (배치 → 텐서 변환 확인)
+    neg = impl.sample_negatives(noise, len(batch), 3, generator=torch.Generator().manual_seed(1))
+    torch.testing.assert_close(a, model(torch.tensor([0, 2, 4, 6]), torch.tensor([1, 3, 5, 7]), neg))
+
+
+def test_skipgram_loss_depends_on_negatives(impl):
+    model = _trained_like_skipgram(impl)
+    center, context = torch.tensor([0, 1]), torch.tensor([2, 3])
+    a = model(center, context, torch.tensor([[4, 5], [6, 7]]))
+    b = model(center, context, torch.tensor([[5, 6], [7, 4]]))
+    assert not torch.allclose(a, b)  # (b) 음성 샘플이 바뀌면 loss 도 바뀐다
+
+
+def test_skipgram_loss_is_finite_for_large_scores(impl):
+    """log(sigmoid(x)) 를 나눠 계산하면 큰 점수에서 log(0) = -inf → loss = inf. logsigmoid 는 유한하다."""
+    model = _trained_like_skipgram(impl)
+    with torch.no_grad():
+        model.in_embed.weight.mul_(100)
+        model.out_embed.weight.mul_(100)
+    loss = model(torch.tensor([0, 1]), torch.tensor([2, 3]), torch.tensor([[4, 5], [6, 7]]))
+    assert torch.isfinite(loss)
 
 
 # ----- Level 3 -----

@@ -1,36 +1,51 @@
-# HANDOFF — Part 1 (main 에서 한 실습씩 순차 진행)
+# HANDOFF — 방향 전환(2026-11-09) 이후
 
-진행 방식: 한 번에 한 실습만 완성한 뒤 멈춘다. 다음 실습은 ①(총괄 세션)의 지시를 받고 시작한다.
-순서: ① pytorch → ② tokenizer → ③ embedding → ④ word2vec → ⑤ transformer
+방향: **개념은 깊게, 구현은 얕게 — 서비스 설계 중심.** 목표는 RAG·GraphRAG 서비스를 설계·판단하는 능력이다.
+진행 방식: 한 단계(실습)씩 완성한 뒤 멈춘다. 다음 실습은 사용자가 "다음"이라고 할 때 ①(총괄 세션)의 지시를 받고 시작한다.
 
-## 실습별 상태
+## 방향 전환 단계
 
-| 순서 | 실습 | 상태 | 비고 |
+| 단계 | 내용 | 커밋 | 상태 |
 |---|---|---|---|
-| ① | P1-04 pytorch | **완료(③ PASS_WITH_NOTES, 권장 수정 반영)** | 테스트 10개 통과(solution) / starter 10 skip. noqa, skip 사유 설명, 진행 순서 표기 반영. REF 링크는 pytorch.org 차단으로 미확인 |
-| ② | P1-01 tokenizer | **완료(③ PASS_WITH_NOTES, 수정 반영·재검증 대기)** | Level 1(TODO 1~5: tokenize·Vocab·특수 토큰·pad/truncate), Level 2(TODO 6~10: BPE), Level 3(compare_with_hf.py). 테스트 15개 통과(solution) / starter 15 skip (TODO 8 동점·TODO 9 rank 순서 검사 포함). README 12항목, experiments/P1-01-20261109-bpe |
-| ③ | P1-02 embedding | **완료(검증 대기)** | Level 1(TODO 1~6: 조회·one-hot 동치·L2·코사인·문장 벡터), Level 2(TODO 7~11: EmbeddingLayer+padding_idx, 학습형 위치 임베딩, top-k), Level 3(TODO 12 PCA, nn.Embedding 비교, run_demo.py, compare_pretrained.py 선택). solution 12 passed + 1 skipped(사전학습 비교, sentence-transformers 미설치) / starter 13 skip. README 12항목, experiments/P1-02-20261109-embedding |
-| ④ | P1-03 word2vec | **완료(검증 대기)** | Level 1(TODO 1~3: 어휘, Skip-gram 쌍, CBOW 예제 패딩), Level 2(TODO 4~10: count^0.75 잡음 분포, 음성 샘플, Skip-gram NS, CBOW 마스크 평균, 배치 loss), Level 3(TODO 11 최근접, run_demo.py 전후 비교, compare_with_gensim.py). **CBOW 실패 해결**(양쪽 문맥만 쓰던 예제 → 모든 위치 + 패딩·마스크, 순도 0.33→0.86). solution 17 passed / starter 17 skipped (generator·사전순 동점·logsigmoid 변이 검사 포함). README 12항목, experiments/P1-03-20261109-word2vec |
-| ⑤ | P1-05 transformer | **완료(검증 대기)** | Level 1(TODO 1~10: Q/K/V, 스케일드 닷-프로덕트, causal·padding 마스크), Level 2(TODO 11~19: MHA, FFN, 사인/코사인 PE, Pre-LN 블록=EncoderBlock), Level 3(TODO 20~23: 문자 LM, train_tiny.py·visualize_attention.py·compare_with_torch.py). solution 22 passed / starter 22 skipped. 전체 NaN 재현, 위치 인코딩 사용, 임베딩 크기(std D^-0.5 × √D), finfo.min 마스킹 테스트 포함. README 12항목, experiments/P1-05-20261109-transformer |
+| 1 | 기획 문서 수정 (PROJECT_PLAN, LEARNING_ROADMAP 22주, PROGRESS, ARCHITECTURE, README들) | 99a40ff | 완료(검증 대기) |
+| 2 | 기존 Part 1 심화 실습(tokenizer·embedding·word2vec·transformer)을 각 `<실습>/advanced/`로 이동(24개 파일) | f655119 | 완료(검증 대기) |
+| 3 | 새 Tokenizer 메인 실습 P1-01 | 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) |
 
-`docs/PROGRESS.md`의 Part 1 항목은 모두 `NOT_STARTED`로 유지한다. 학습자가 직접 확인해야 `COMPLETED`가 된다.
+## Part 1 실습 상태
 
-## 공통 규약 (Part 1 전체에 적용)
+| 실습 | 메인 | 선택 과제(advanced/) |
+|---|---|---|
+| P1-04 pytorch | 그대로 유지(③ PASS_WITH_NOTES). 사용자가 starter.py 를 직접 채움(a4fdc61) | — |
+| P1-01 tokenizer | **새로 작성(3단계)**. TODO 5개: 토큰 수, 한/영 비교, 비용 추정, 토큰 예산 청크(오버랩), 컨텍스트 맞춤. solution 12 passed / starter 11 skipped + 1 passed(가짜 Claude 클라이언트 테스트, impl 무관). README 12항목 + 서비스 관점, experiments/P1-01-20261109-tokenizer | P1-01A: BPE 직접 구현(기존) |
+| P1-02 embedding | 자리표시 README(메인 작성 예정) | P1-02A(기존) |
+| P1-03 word2vec | 자리표시 README(메인: 개념 + gensim 짧은 실행 예정) | P1-03A(기존) |
+| P1-05 transformer | 자리표시 README(메인 작성 예정) | P1-05A(기존) |
+
+`docs/PROGRESS.md`는 모두 `NOT_STARTED`로 유지한다. 학습자가 직접 확인해야 `COMPLETED`가 된다.
+
+## P1-01 메인 실습 메모
+- 토크나이저: HF `tokenizers` 바이트 단위 BPE 를 저장소 말뭉치로 학습(다운로드 없음, vocab 500).
+- 한글 한 글자가 토큰 여러 개가 되고, 토큰 하나가 두 글자에 걸칠 수 있다(offsets 겹침). 청크·자르기는 offsets 로 원문을 자르고, 제공 함수 `is_char_boundary`로 글자 경계에서만 자른다. 겹침 0 청크를 이어 붙이면 원문과 같다.
+- 토큰 수 기준은 "원문 전체 인코딩"이다. 조각만 다시 인코딩하면 경계에서 몇 토큰 달라질 수 있음을 README 에 명시했다.
+- 선택 스크립트: `count_with_claude.py`(`messages.count_tokens`, `.env`의 `ANTHROPIC_API_KEY`, 모델은 `LLM_MODEL` 기본 `claude-opus-5-5`), `pretrained_tokenizer.py`(Qwen/Qwen2.5-0.5B tokenizer.json). 클라우드 환경에서는 키·인터넷이 없어 둘 다 "건너뜀" → **사용자 PC에서 실행 필요**.
+- 단가는 공식 가격 페이지 기준 "작성 시점 2026-10"으로 표기했다.
+- requirements/part1.txt 에 선택 의존성 anthropic, python-dotenv 추가.
+
+## 공통 규약 (Part 1)
 - 테스트는 `part1_ai_fundamentals/conftest.py`의 `impl` 픽스처를 쓴다.
-  - 실습 디렉터리의 `{IMPL}.py`를 파일 경로 기준으로, 고유한 모듈명(`part1_<디렉터리>_<impl>`)으로 불러온다.
+  - 실습 디렉터리(또는 `advanced/`)의 `{IMPL}.py`를 파일 경로로, `part1_` + 상대 경로 기반 고유 모듈명으로 불러온다(예: `part1_tokenizer_advanced_solution`).
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
-- 루트 `pytest.ini`: `--import-mode=importlib`.
-- 테스트 파일명은 실습별로 고유하게 짓는다. pytorch(`test_p1_04_pytorch.py`), tokenizer(`test_p1_01_tokenizer.py`), embedding(`test_p1_02_embedding.py`), word2vec(`test_p1_03_word2vec.py`), transformer(`test_p1_05_transformer.py`) — Part 1 전체 적용 완료.
-- 루트에서 `pytest` 한 번으로 실습들이 섞이지 않고 실행된다(P1-05 반영 후 76 passed, 1 skipped — skip 은 P1-02 사전학습 비교, sentence-transformers 미설치).
-- starter를 단독 실행하면(`python <실습>/starter.py`) 남은 TODO 목록이 나온다. Part 1 다섯 실습 모두 적용했다.
+- 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
+- API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
+- 루트 `pytest`: 88 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 1건이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다.
 
 ## 환경 메모
-- 클라우드 환경에서는 download.pytorch.org가 막혀 있어 PyPI의 torch(2.15.0+cu132, CPU로 동작)를 설치했다. 설치에 수십 분이 걸린다.
-- `.venv`: Python 3.12.13, numpy 2.5.4, gensim 4.4.0, tokenizers 0.23.3.
+- 클라우드: download.pytorch.org·huggingface.co 차단. PyPI torch 2.15.0+cu132(CPU).
+- `.venv`: Python 3.12.13, numpy 2.5.4, gensim 4.4.0, tokenizers 0.23.3, anthropic 2.6.0, python-dotenv.
 
-## 보류 (①의 지시가 있을 때 진행)
-Part 0 문서 수정 — ENVIRONMENT 정정, REPOSITORY_ANALYSIS 실제 경로, API 기반 전환(.env.example, 비용 안내), 실험 디렉터리 이름 통일, ARCHITECTURE §4 예시를 실제 SelfAttention 코드에 맞추기 등.
+## 보류
+- Part 0 문서 수정: ENVIRONMENT 정정, REPOSITORY_ANALYSIS 실제 경로, `.env.example`·비용 안내, 실험 디렉터리 이름 통일 등.
 
 ## 다음에 재개할 첫 단계
-Part 1 실습 자료(5개)는 모두 작성되었다. 학습자 확인 후 PROGRESS 상태를 바꾼다.
-①의 지시에 따라 다음 중 하나를 진행한다: 보류 중인 Part 0 문서 수정(ENVIRONMENT, REPOSITORY_ANALYSIS, API 전환 등) 또는 Part 2.
+사용자가 "다음"이라고 하면 P1-02 Embedding 메인 실습을 시작한다(①의 지시 확인 후).

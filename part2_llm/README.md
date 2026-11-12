@@ -1,6 +1,7 @@
 # Part 2 — LLM 활용 원리
 
-> 상태: **골격만 있음** — 실습 코드는 아직 작성하지 않았습니다. 진행 상태는 [PROGRESS](../docs/PROGRESS.md).
+> 상태: **P2-01 작성됨**, 나머지는 순서대로 작성 예정. 진행 상태는 [PROGRESS](../docs/PROGRESS.md).
+> 테스트 설정: [`conftest.py`](./conftest.py) (Part 1 과 같은 규약: `IMPL=starter`, TODO 미구현 → skip).
 
 > 방향: **개념은 깊게, 구현은 얕게 — 서비스 설계 중심**([PROJECT_PLAN](../docs/PROJECT_PLAN.md)).
 

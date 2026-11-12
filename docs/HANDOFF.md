@@ -12,7 +12,8 @@
 | 3 | 새 Tokenizer 메인 실습 P1-01 | 16ecd91 → 검증 반영 a8d675d, c9f495a | 완료(③ PASS_WITH_NOTES 반영) |
 | 4 | 새 Embedding 메인 실습 P1-02 | e4b03e6 | 완료(③ PASS, 사소 권장 2건은 5단계 커밋에 반영) |
 | 5 | 새 Word2Vec 메인 실습 P1-03 | a8ef12d | 완료(③ PASS, 사소 권장 1건은 6단계 커밋에 반영) |
-| 6 | 새 Transformer 메인 실습 P1-05 | 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) — Part 1 메인 5개 모두 작성 |
+| 6 | 새 Transformer 메인 실습 P1-05 | 7204c31 → 검증 반영 093a0fa | 완료(③ PASS_WITH_NOTES 반영) — Part 1 메인 5개 모두 작성 |
+| 7 | Part 2 첫 실습 P2-01 다음 토큰 예측·샘플링 | 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) |
 
 ## Part 1 실습 상태
 
@@ -71,14 +72,29 @@
 - `test_top_k_many_ties_ascending_index`: 같은 벡터 25개가 섞인 문서에서 동점 번호 오름차순. `kind="stable"` 제거 변이로 이 테스트가 실패하는 것을 확인.
 - `fake_embed` docstring 2-gram 예시를 실제 목록 `[' 손', '손실', '실 ', ' 값', '값 ']`으로 수정(solution·starter).
 
+## Part 2 실습 상태
+
+| 실습 | 상태 |
+|---|---|
+| P2-01 next_token_prediction | **작성(2026-11-12)**. TODO 5개: temperature softmax, top-k, top-p, sample_next(greedy/sampling), generate(컨텍스트 창·max_new_tokens·eos). solution 11 passed / starter 11 skipped. README 12항목 + 서비스 관점, experiments/P2-01-20261112-next-token |
+| P2-02 ~ P2-04, P2-S1 | 자리표시 README (순서대로 작성 예정) |
+
+## P2-01 메모
+- 모델: 다운로드 없는 단어 `BigramLM`(제공, Part 1 말뭉치, alpha=0.001). "모델 = 토큰 목록 → 다음 토큰 logits 함수" 인터페이스라 같은 `generate`가 Qwen 에서도 동작.
+- 선택 `run_qwen.py`: transformers `AutoTokenizer`/`AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-0.5B")`, CUDA 면 `.half()`, 상위 5 토큰·T별 엔트로피·생성·프롬프트 길이별 시간(cuda.synchronize). 이 환경은 transformers 미설치로 "건너뜀"만 확인 → **사용자 PC 실행 필요**. 테스트하지 않음(실행하면 다운로드가 일어나므로).
+- 실제 결과로 드러난 교육 포인트: greedy 되풀이("the same data and"), 시드 재현, alpha 0.1 이면 엔트로피 2.69→8.31비트로 무의미한 문장, 컨텍스트 창 4 → 입력 [4, 4, 4].
+- 서비스 관점: Claude API(API 버전 2026-10-21)에서 temperature·top_p·top_k 를 보내면 400 — claude-api 스킬 shared/api-version-migration.md 로 확인. 일관성은 프롬프트·구조화 출력(P2-02)으로 조절.
+- `part2_llm/conftest.py` 신설(Part 1 conftest 와 같은 규약, 모듈명 접두어 `part2_`), `pytest.ini` testpaths 에 part2_llm 추가.
+- Anthropic SDK 코드는 이번 실습에 없음(P2-02 부터).
+
 ## 공통 규약 (Part 1)
 - 테스트는 `part1_ai_fundamentals/conftest.py`의 `impl` 픽스처를 쓴다.
   - 실습 디렉터리(또는 `advanced/`)의 `{IMPL}.py`를 파일 경로로, `part1_` + 상대 경로 기반 고유 모듈명으로 불러온다(예: `part1_tokenizer_advanced_solution`).
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 126 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
-- ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 1건이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다.
+- 루트 `pytest`: 137 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 3건(2026-11-12 기준)이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다. 사용자가 진행 중인 `tokenizer/starter.py`(60349ae)도 손대지 않았다.
 
 ## 환경 메모
 - 클라우드: download.pytorch.org·pytorch.org·huggingface.co·platform.openai.com·numpy.org·radimrehurek.com·arxiv.org 접속 불가. PyPI torch 2.15.0+cu132(CPU).
@@ -98,4 +114,4 @@
 - HINT 1 문구를 "글자 경계를 확인하지 않고 decode 하면 한글이 깨질 수 있음"으로 조건 명시.
 
 ## 다음에 재개할 첫 단계
-Part 1 메인 실습 5개(P1-04·01·02·03·05)가 모두 작성되었다. 사용자가 "다음"이라고 하면 ①의 지시에 따라 Part 2(P2-01 등)를 시작한다.
+Part 1 메인 5개와 P2-01 이 작성되었다. 사용자가 "다음"이라고 하면 ①의 지시에 따라 P2-02(Claude API 기초)를 시작한다. Anthropic SDK 코드는 claude-api 스킬로 현재 형태를 확인해 작성한다.

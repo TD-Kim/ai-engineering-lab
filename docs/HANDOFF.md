@@ -76,7 +76,7 @@
 
 | 실습 | 상태 |
 |---|---|
-| P2-01 next_token_prediction | **작성(2026-11-12)**. TODO 5개: temperature softmax, top-k, top-p, sample_next(greedy/sampling), generate(컨텍스트 창·max_new_tokens·eos). solution 11 passed / starter 11 skipped. README 12항목 + 서비스 관점, experiments/P2-01-20261112-next-token |
+| P2-01 next_token_prediction | **작성(2026-11-12)**. TODO 5개: temperature softmax, top-k, top-p, sample_next(greedy/sampling), generate(컨텍스트 창·max_new_tokens·eos). solution 15 passed / starter 15 skipped. README 12항목 + 서비스 관점, experiments/P2-01-20261112-next-token |
 | P2-02 ~ P2-04, P2-S1 | 자리표시 README (순서대로 작성 예정) |
 
 ## P2-01 메모
@@ -87,13 +87,20 @@
 - `part2_llm/conftest.py` 신설(Part 1 conftest 와 같은 규약, 모듈명 접두어 `part2_`), `pytest.ini` testpaths 에 part2_llm 추가.
 - Anthropic SDK 코드는 이번 실습에 없음(P2-02 부터).
 
+## ③ P2-01 검증 반영 (e401983 PASS_WITH_NOTES)
+- `test_sample_next_applies_temperature`[0.5, 2.0]: 시드 0 으로 2000 회, 1 등 빈도 ≈ softmax_with_temperature(±0.03). `test_sample_next_low_temperature_more_peaked`: T=0.5 빈도 > T=2 빈도 + 0.2.
+- `test_sample_next_filter_order_temperature_topk_topp`: T→top-p(T=2, p=0.7 → 후보 {0,1,2}), top-k→top-p(k=2, p=0.5 → {0}).
+- `test_top_k_filter`: k≥V 반환값을 고쳐도 입력 불변.
+- 스크래치 변이 4개(temperature 미적용 / top-p 를 T 전에 / top-p 를 top-k 전에 / k≥V 에서 clone 없음)가 모두 해당 테스트에서 실패함을 확인, starter 원복.
+- README §4-1 에 순서 예시 2개와 "라이브러리·엔진마다 순서가 다를 수 있음" 단서 추가.
+
 ## 공통 규약 (Part 1)
 - 테스트는 `part1_ai_fundamentals/conftest.py`의 `impl` 픽스처를 쓴다.
   - 실습 디렉터리(또는 `advanced/`)의 `{IMPL}.py`를 파일 경로로, `part1_` + 상대 경로 기반 고유 모듈명으로 불러온다(예: `part1_tokenizer_advanced_solution`).
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 137 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- 루트 `pytest`: 141 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
 - ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 3건(2026-11-12 기준)이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다. 사용자가 진행 중인 `tokenizer/starter.py`(60349ae)도 손대지 않았다.
 
 ## 환경 메모

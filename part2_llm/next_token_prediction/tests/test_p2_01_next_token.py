@@ -43,8 +43,10 @@ def test_top_k_filter(impl):
     tie = impl.top_k_filter(torch.tensor([1.0, 3.0, 1.0, 0.0]), 2)      # 2 번째 점수(1.0)와 동점은 남김
     assert tie.tolist() == [1.0, 3.0, 1.0, float("-inf")]
     original = torch.tensor([2.0, 1.0])
-    assert impl.top_k_filter(original, 5).tolist() == [2.0, 1.0]
-    assert original.tolist() == [2.0, 1.0]                             # 입력을 바꾸지 않음
+    out = impl.top_k_filter(original, 5)                               # k >= V 경로
+    assert out.tolist() == [2.0, 1.0]
+    out[0] = 99.0                                                      # 반환값을 고쳐도
+    assert original.tolist() == [2.0, 1.0]                             # 입력은 그대로("새 logits")
     with pytest.raises(ValueError):
         impl.top_k_filter(Z, 0)
 
@@ -86,6 +88,35 @@ def test_sample_next_frequency_roughly_matches_probability(impl):
     g = torch.Generator().manual_seed(0)
     picks = [impl.sample_next(Z, 1.0, generator=g) for _ in range(2000)]
     assert 0.60 < picks.count(0) / 2000 < 0.73                        # 기대 0.665 (시드 고정이라 결정적)
+
+
+@pytest.mark.parametrize("temperature", [0.5, 2.0])
+def test_sample_next_applies_temperature(impl, temperature):
+    # 같은 시드로 2000 번 뽑은 1 등 빈도 ≈ softmax_with_temperature 값(0.5 → 약 0.867, 2.0 → 약 0.506). 허용 오차 ±0.03.
+    g = torch.Generator().manual_seed(0)
+    freq = [impl.sample_next(Z, temperature, generator=g) for _ in range(2000)].count(0) / 2000
+    expected = float(impl.softmax_with_temperature(Z, temperature)[0])
+    assert abs(freq - expected) < 0.03, (temperature, freq, expected)
+
+
+def test_sample_next_low_temperature_more_peaked(impl):
+    def freq(t):
+        g = torch.Generator().manual_seed(0)
+        return [impl.sample_next(Z, t, generator=g) for _ in range(2000)].count(0) / 2000
+
+    assert freq(0.5) > freq(2.0) + 0.2
+
+
+def test_sample_next_filter_order_temperature_topk_topp(impl):
+    # ① T 를 먼저: 확률 [0.50, 0.30, 0.15, 0.05], T=2 로 평평해진 뒤 top-p 0.7 → 후보 3 개(T 전에 top-p 를 하면 2 개)
+    logits = torch.log(torch.tensor([0.50, 0.30, 0.15, 0.05]))
+    g = torch.Generator().manual_seed(0)
+    assert {impl.sample_next(logits, 2.0, top_p=0.7, generator=g) for _ in range(500)} == {0, 1, 2}
+    # ② top-k 다음 top-p: 확률 [0.4, 0.3, 0.2, 0.1], k=2 로 [0.571, 0.429] 가 된 뒤 top-p 0.5 → 후보 1 개
+    #    (top-p 를 먼저 하면 0.4 < 0.5 라 2 개가 남는다)
+    logits = torch.log(torch.tensor([0.4, 0.3, 0.2, 0.1]))
+    g = torch.Generator().manual_seed(0)
+    assert {impl.sample_next(logits, 1.0, top_k=2, top_p=0.5, generator=g) for _ in range(500)} == {0}
 
 
 # --- TODO 5 ---------------------------------------------------------------

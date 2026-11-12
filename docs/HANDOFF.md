@@ -11,7 +11,8 @@
 | 2 | 기존 Part 1 심화 실습(tokenizer·embedding·word2vec·transformer)을 각 `<실습>/advanced/`로 이동(24개 파일) | f655119 | 완료(검증 대기) |
 | 3 | 새 Tokenizer 메인 실습 P1-01 | 16ecd91 → 검증 반영 a8d675d, c9f495a | 완료(③ PASS_WITH_NOTES 반영) |
 | 4 | 새 Embedding 메인 실습 P1-02 | e4b03e6 | 완료(③ PASS, 사소 권장 2건은 5단계 커밋에 반영) |
-| 5 | 새 Word2Vec 메인 실습 P1-03 | 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) |
+| 5 | 새 Word2Vec 메인 실습 P1-03 | a8ef12d | 완료(③ PASS, 사소 권장 1건은 6단계 커밋에 반영) |
+| 6 | 새 Transformer 메인 실습 P1-05 | 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) — Part 1 메인 5개 모두 작성 |
 
 ## Part 1 실습 상태
 
@@ -21,7 +22,7 @@
 | P1-01 tokenizer | **새로 작성(3단계)**. TODO 5개: 토큰 수, 한/영 비교, 비용 추정, 토큰 예산 청크(오버랩), 컨텍스트 맞춤. solution 13 passed / starter 12 skipped + 1 passed(가짜 Claude 클라이언트 테스트, impl 무관). README 12항목 + 서비스 관점, experiments/P1-01-20261109-tokenizer | P1-01A: BPE 직접 구현(기존) |
 | P1-02 embedding | **새로 작성(2026-11-12)**. TODO 5개: L2 정규화, 코사인 유사도, embed_fn 주입 배치 임베딩, top-k 검색, (선택) 임베딩 캐시. solution 15 passed / starter 15 skipped. README 12항목 + 서비스 관점, experiments/P1-02-20261112-embedding-main | P1-02A: 임베딩 층·위치 임베딩 직접 구현(기존) |
 | P1-03 word2vec | **새로 작성(2026-11-12, 짧게)**. TODO 4개: 전처리, gensim 학습(build_vocab→train, workers=1), 학습 전후 쌍 유사도·최근접(OOV 처리), (선택) 평균 문장 벡터. solution 11 passed / starter 11 skipped. README 12항목 + 서비스 관점, experiments/P1-03-20261112-word2vec-main | P1-03A: Skip-gram·CBOW·NS 직접 구현(기존) |
-| P1-05 transformer | 자리표시 README(메인 작성 예정) | P1-05A(기존) |
+| P1-05 transformer | **새로 작성(2026-11-12)**. TODO 5개: Q·K·V, 스케일드 닷-프로덕트 어텐션, causal 마스크, 길이 T 별 비용 측정, (선택) KV 캐시. solution 11 passed / starter 11 skipped. 나머지 부품은 README mermaid 그림·설명. README 12항목 + 서비스 관점, experiments/P1-05-20261112-transformer-main | P1-05A: MHA~미니 GPT 직접 구현(기존) |
 
 `docs/PROGRESS.md`는 모두 `NOT_STARTED`로 유지한다. 학습자가 직접 확인해야 `COMPLETED`가 된다.
 
@@ -49,6 +50,17 @@
 - 실제 결과로 드러난 교육 포인트: 대조군도 0.5~0.65(작은 말뭉치), `a dog and a cat` 평균 벡터는 흔한 단어에 끌려 정답 실패·`dog cat` 은 성공, 한국어 질의는 전부 OOV.
 - gensim 문서·arXiv 는 작성 환경에서 접속 불가 → REF "미확인" 표기(논문 저자·연도·절은 기재).
 
+## P1-05 메인 실습 메모
+- torch. 마스크 규약 True = 볼 수 있음(F.scaled_dot_product_attention bool attn_mask 와 같음, nn.MultiheadAttention key_padding_mask 는 반대 — README 명시).
+- 가린 칸은 -inf. 한 행 전체를 가리면 직접 계산은 NaN, 이 torch 2.15 SDPA 는 0 을 돌려줌(관찰) → SDPA 비교 테스트는 모든 행에 True 가 있는 마스크로만, NaN 은 별도 테스트.
+- 시간 측정 테스트는 모양·원소 수·MB 만 단언. 데모 시간 비율은 4회 실행에서 2.2~5.7배로 흔들림(README·experiments 에 그대로 기록).
+- KV 캐시: 처음 `torch.cat` 누적 구현은 캐시 쪽이 더 느렸음(19.7 vs 28.1ms) → 미리 할당한 버퍼로 수정, 약 1/5. 결과는 한 번에 계산한 causal 과 같음(2e-06).
+- "lost in the middle" 등 출처를 확인할 수 없는 주장은 넣지 않음. Vaswani et al. 2017 은 절 번호로 인용, arXiv·pytorch.org 링크는 미확인 표기.
+- 데모는 `torch.set_num_threads(1)`; 데모 실행 테스트는 끝나면 스레드 수를 되돌린다.
+
+## P1-03 사소 권장 반영 (③ PASS 메모)
+- `test_train_word2vec_settings` 에 `m.sample == 0 and m.hs == 0` 단언 추가.
+
 ## P1-02 사소 권장 반영 (③ PASS 메모)
 - `test_top_k_many_ties_ascending_index`: 같은 벡터 25개가 섞인 문서에서 동점 번호 오름차순. `kind="stable"` 제거 변이로 이 테스트가 실패하는 것을 확인.
 - `fake_embed` docstring 2-gram 예시를 실제 목록 `[' 손', '손실', '실 ', ' 값', '값 ']`으로 수정(solution·starter).
@@ -59,11 +71,11 @@
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 115 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- 루트 `pytest`: 126 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
 - ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 1건이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다.
 
 ## 환경 메모
-- 클라우드: download.pytorch.org·huggingface.co·platform.openai.com·numpy.org·radimrehurek.com·arxiv.org 접속 불가. PyPI torch 2.15.0+cu132(CPU).
+- 클라우드: download.pytorch.org·pytorch.org·huggingface.co·platform.openai.com·numpy.org·radimrehurek.com·arxiv.org 접속 불가. PyPI torch 2.15.0+cu132(CPU).
 - `.venv`: Python 3.12.13, numpy 2.5.4, gensim 4.4.0, tokenizers 0.23.3, anthropic 2.6.0, python-dotenv, openai 3.49.0.
 
 ## 보류
@@ -80,4 +92,4 @@
 - HINT 1 문구를 "글자 경계를 확인하지 않고 decode 하면 한글이 깨질 수 있음"으로 조건 명시.
 
 ## 다음에 재개할 첫 단계
-사용자가 "다음"이라고 하면 P1-05 Transformer 메인 실습을 시작한다(①의 지시 확인 후).
+Part 1 메인 실습 5개(P1-04·01·02·03·05)가 모두 작성되었다. 사용자가 "다음"이라고 하면 ①의 지시에 따라 Part 2(P2-01 등)를 시작한다.

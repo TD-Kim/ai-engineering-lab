@@ -38,6 +38,7 @@ def test_preprocess_corpus(sents):
 def test_train_word2vec_settings(impl, sents, models):
     m = models[1]
     assert (m.vector_size, m.window, m.sg, m.negative, m.epochs, m.workers, m.min_count) == (32, 2, 1, 5, 200, 1, 1)
+    assert m.sample == 0 and m.hs == 0                                  # 다운샘플링·계층적 소프트맥스 끔
     assert models[0].sg == 0
     assert len(m.wv) == len({t for s in sents for t in s})
 

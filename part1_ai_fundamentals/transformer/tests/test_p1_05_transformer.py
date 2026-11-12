@@ -25,6 +25,7 @@ def test_make_qkv_shapes_and_values(impl):
     q, k, v = impl.make_qkv(x, wq, wk, wv)
     assert q.shape == (5, 4) and k.shape == (5, 4) and v.shape == (5, 6)
     torch.testing.assert_close(q, x @ wq)
+    torch.testing.assert_close(k, x @ wk)
     torch.testing.assert_close(v, x @ wv)
     qb, _, _ = impl.make_qkv(_rand(2, 5, 8), wq, wk, wv)            # 배치 (B, T, D)
     assert qb.shape == (2, 5, 4)

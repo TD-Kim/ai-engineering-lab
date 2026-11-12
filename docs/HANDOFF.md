@@ -58,6 +58,12 @@
 - "lost in the middle" 등 출처를 확인할 수 없는 주장은 넣지 않음. Vaswani et al. 2017 은 절 번호로 인용, arXiv·pytorch.org 링크는 미확인 표기.
 - 데모는 `torch.set_num_threads(1)`; 데모 실행 테스트는 끝나면 스레드 수를 되돌린다.
 
+## ③ P1-05 검증 반영 (7204c31 PASS_WITH_NOTES)
+- `test_make_qkv_shapes_and_values` 에 `k == x @ wk` 단언 추가. 스크래치 변이(K = Q)로 이 테스트만 실패 확인.
+- README 서비스 관점 정정: 어텐션 계산은 T², 점수 행렬을 그대로 만들면 메모리도 T²(FlashAttention 류는 메모리 T 수준·계산 T²), 모델 전체로는 T 비례 항(투영·FFN)도 있어 길수록 T² 비중이 커짐.
+- 프롬프트 캐싱: 접두어가 바뀌면 그 지점 이후 캐시 무효(앞 구간은 재사용 가능), 최소 길이는 모델마다 다름(수치는 Part 2), `cache_control` 표시·`usage.cache_read_input_tokens` 확인 — claude-api 스킬 문서(prompt-caching)로 확인.
+- KV 캐시 메모리 식 = 토큰 수 × 층 수 × 2 × (KV 헤드 수 × 헤드 차원) × 자료형 바이트, GQA/MQA 는 KV 헤드 수가 줄어 메모리 감소.
+
 ## P1-03 사소 권장 반영 (③ PASS 메모)
 - `test_train_word2vec_settings` 에 `m.sample == 0 and m.hs == 0` 단언 추가.
 

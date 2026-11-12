@@ -119,6 +119,15 @@ def test_top_k_order_ties_and_types(impl):
     assert res[0][1] == pytest.approx(1.0) and res[2][1] == pytest.approx(2 ** -0.5, rel=1e-5)
 
 
+def test_top_k_many_ties_ascending_index(impl):
+    # 같은 벡터 25개가 섞인 문서: 동점은 반드시 번호 오름차순. 기본(불안정) 정렬은 이 순서를 지키지 않는다(kind="stable" 필요).
+    rng = np.random.default_rng(0)
+    docs = np.vstack([np.tile([1.0, 0.0], (25, 1)), rng.normal(size=(15, 2))])
+    docs = docs[rng.permutation(len(docs))]
+    same = sorted(int(i) for i in np.where((docs == [1.0, 0.0]).all(axis=1))[0])
+    res = impl.top_k(np.array([1.0, 0.0]), docs, 25)
+    assert [i for i, _ in res] == same
+
 def test_top_k_k_larger_than_n_and_invalid(impl):
     docs = np.eye(3)
     assert len(impl.top_k(np.array([1.0, 0.0, 0.0]), docs, 10)) == 3

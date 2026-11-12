@@ -30,7 +30,7 @@
 | P1-01A | Tokenizer 심화: BPE 직접 구현 (`tokenizer/advanced/`) | — | 선택 | `NOT_STARTED` | | 기존 심화 실습 |
 | P1-02 | Embedding: 정규화·코사인, OpenAI 임베딩 유사도·최근접 | W3 | 메인 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
 | P1-02A | Embedding 심화: 임베딩 층·위치 임베딩 직접 구현 (`embedding/advanced/`) | — | 선택 | `NOT_STARTED` | | 기존 심화 실습 |
-| P1-03 | Word2Vec(짧게): 분포 가설, gensim | W3 | 메인 | `NOT_STARTED` | |  |
+| P1-03 | Word2Vec(짧게): 분포 가설, gensim | W3 | 메인 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
 | P1-03A | Word2Vec 심화: Skip-gram/CBOW·Negative Sampling 직접 구현 (`word2vec/advanced/`) | — | 선택 | `NOT_STARTED` | | 기존 심화 실습 |
 | P1-05 | Transformer: 어텐션 1회 계산, 구조, 컨텍스트 길이와 지연·비용, KV 캐시 | W4 | 메인 | `NOT_STARTED` | |  |
 | P1-05A | Transformer 심화: Self-Attention~미니 GPT 직접 구현·학습 (`transformer/advanced/`) | — | 선택 | `NOT_STARTED` | | 기존 심화 실습 |

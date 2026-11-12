@@ -6,3 +6,4 @@ gensim>=4.3          # 직접 구현한 Word2Vec과 비교 (Python 3.12 휠 사�
 # 선택: sentence-transformers (P1-02 사전학습 임베딩 비교 compare_pretrained.py 에서만 사용, requirements/part3.txt 참고)
 anthropic>=2.6       # (선택) P1-01 count_with_claude.py — Claude 토큰 수 세기. API 키는 .env 에만
 python-dotenv>=1.0   # (선택) .env 읽기
+openai>=3.49          # (선택) P1-02 embed_with_openai.py — OpenAI 임베딩. API 키는 .env 에만

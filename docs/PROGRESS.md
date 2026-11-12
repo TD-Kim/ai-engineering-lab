@@ -26,9 +26,9 @@
 | ID | 실습 | 주차 | 구분 | 상태 | 확인일 | 메모 |
 |---|---|---|---|---|---|---|
 | P1-04 | (선수) PyTorch 기초 | W2 | 메인 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
-| P1-01 | Tokenizer: 토큰 수·한국어/영어·비용·토큰 청킹·컨텍스트 | W2 | 메인 | `NOT_STARTED` | |  |
+| P1-01 | Tokenizer: 토큰 수·한국어/영어·비용·토큰 청킹·컨텍스트 | W2 | 메인 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
 | P1-01A | Tokenizer 심화: BPE 직접 구현 (`tokenizer/advanced/`) | — | 선택 | `NOT_STARTED` | | 기존 심화 실습 |
-| P1-02 | Embedding: 정규화·코사인, OpenAI 임베딩 유사도·최근접 | W3 | 메인 | `NOT_STARTED` | |  |
+| P1-02 | Embedding: 정규화·코사인, OpenAI 임베딩 유사도·최근접 | W3 | 메인 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
 | P1-02A | Embedding 심화: 임베딩 층·위치 임베딩 직접 구현 (`embedding/advanced/`) | — | 선택 | `NOT_STARTED` | | 기존 심화 실습 |
 | P1-03 | Word2Vec(짧게): 분포 가설, gensim | W3 | 메인 | `NOT_STARTED` | |  |
 | P1-03A | Word2Vec 심화: Skip-gram/CBOW·Negative Sampling 직접 구현 (`word2vec/advanced/`) | — | 선택 | `NOT_STARTED` | | 기존 심화 실습 |

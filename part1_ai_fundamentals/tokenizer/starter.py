@@ -64,7 +64,7 @@ def count_tokens(tokenizer: Tokenizer, text: str) -> int:
     # HINT 2: len(tokenizer.encode(text).ids)
     # WHY: 사람은 글자·단어로 길이를 재지만, 모델과 요금은 토큰으로 잰다.
     # 서비스 관점: 요청 전에 토큰 수를 알아야 비용 추정(TODO 3), 청크 크기(TODO 4), 컨텍스트 초과 방지(TODO 5)가 가능하다.
-    raise NotImplementedError("TODO 1")
+    return len(tokenizer.encode(text).ids)
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +79,17 @@ def compare_languages(tokenizer: Tokenizer, samples: dict[str, str]) -> list[dic
     # HINT 2: for name, text in samples.items(): ... rows.append({...})
     # WHY: 토크나이저는 학습 데이터에 많이 나온 언어를 더 크게 묶는다. 언어별 차이는 가정하지 말고 측정한다.
     # 서비스 관점: 한국어 서비스를 영어 기준 예산표로 잡으면 비용이 과소 추정될 수 있다.
-    raise NotImplementedError("TODO 2")
+    rows = []
+    for name, text in samples.items():
+        chars = len(text)
+        tokens = count_tokens(tokenizer, text)
+        rows.append({
+            "name": name,
+            "chars": chars,
+            "tokens": tokens,
+            "chars_per_token": round(chars / tokens, 2) if tokens else 0.0
+        })
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +109,11 @@ def estimate_cost(
     # HINT 2: 예) 입력 2,000 토큰 × $4 / 1M = $0.008
     # 서비스 관점: 1 건은 싸 보여도 하루 요청 수를 곱하면 커진다. RAG 는 검색 문서를 입력에 넣어 입력 토큰이 크게 는다.
     # REF: https://platform.claude.com/docs/en/about-claude/pricing (작성 시점 2026-10 기준)
-    raise NotImplementedError("TODO 3")
+    if model not in prices:
+        raise KeyError(f"unknown model: {model!r}")
+    price_in, price_out = prices[model]
+    per_request = input_tokens / 1_000_000 * price_in + output_tokens / 1_000_000 * price_out
+    return per_request * requests
 
 
 # ---------------------------------------------------------------------------

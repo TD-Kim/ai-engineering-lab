@@ -40,7 +40,7 @@
 | ID | 실습 | 주차 | 구분 | 상태 | 확인일 | 메모 |
 |---|---|---|---|---|---|---|
 | P2-01 | 다음 토큰 예측·샘플링 (로컬 소형 모델) | W5 | 메인 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전 |
-| P2-01B | 로컬 LLM 서빙과 공급자 교체 (Ollama, 공통 LLMClient, TTFT·토큰/초·VRAM) | W5(–6) | 메인 | `NOT_STARTED` | |  |
+| P2-01B | 로컬 LLM 서빙과 공급자 교체 (Ollama, 공통 LLMClient, TTFT·토큰/초·VRAM) | W5(–6) | 메인 | `NOT_STARTED` | | 실습 자료 작성 완료, 학습자 확인 전(GPU 측정은 사용자 PC) |
 | P2-02 | Claude API 기초: 토큰 세기, 프롬프트 구조, 구조화 출력, 스트리밍 | W5 | 메인 | `NOT_STARTED` | |  |
 | P2-03 | 비용·지연: 프롬프트 캐싱, 배치, 토큰 사용량 기록 | W6 | 메인 | `NOT_STARTED` | |  |
 | P2-04 | 프롬프트 vs RAG vs Fine-tuning 선택 기준 (+ LoRA 개념) | W6 | 메인 | `NOT_STARTED` | |  |

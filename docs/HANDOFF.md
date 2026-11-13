@@ -13,7 +13,8 @@
 | 4 | 새 Embedding 메인 실습 P1-02 | e4b03e6 | 완료(③ PASS, 사소 권장 2건은 5단계 커밋에 반영) |
 | 5 | 새 Word2Vec 메인 실습 P1-03 | a8ef12d | 완료(③ PASS, 사소 권장 1건은 6단계 커밋에 반영) |
 | 6 | 새 Transformer 메인 실습 P1-05 | 7204c31 → 검증 반영 093a0fa | 완료(③ PASS_WITH_NOTES 반영) — Part 1 메인 5개 모두 작성 |
-| 7 | Part 2 첫 실습 P2-01 다음 토큰 예측·샘플링 | 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) |
+| 7 | Part 2 첫 실습 P2-01 다음 토큰 예측·샘플링 | e401983 → 검증 반영 f87c91a | 완료(③ PASS_WITH_NOTES 반영) |
+| 8 | P2-01B 로컬 LLM 서빙과 공급자 교체 (사용자 결정으로 추가) | 문서 93dce4d + 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) |
 
 ## Part 1 실습 상태
 
@@ -72,11 +73,20 @@
 - `test_top_k_many_ties_ascending_index`: 같은 벡터 25개가 섞인 문서에서 동점 번호 오름차순. `kind="stable"` 제거 변이로 이 테스트가 실패하는 것을 확인.
 - `fake_embed` docstring 2-gram 예시를 실제 목록 `[' 손', '손실', '실 ', ' 값', '값 ']`으로 수정(solution·starter).
 
+## P2-01B 메모
+- 공통 인터페이스 `generate(prompt) -> (text, Usage)`: FakeClient(기본)·OllamaClient(urllib, transport 주입)·ClaudeClient(Anthropic SDK `messages.stream` → `text_stream` → `get_final_message`, claude-api 스킬로 확인). `make_client` 가 `LLM_PROVIDER` 로 선택.
+- 폴백은 `ProviderError`(연결·시간 초과·5xx·Ollama 503·Claude APIConnectionError/RateLimitError/InternalServerError 계열)에서만. 4xx·인증·버그는 그대로 올림. 예외 계층(APITimeoutError ⊂ APIConnectionError, OverloadedError 등 ⊂ InternalServerError)은 설치된 anthropic 2.6.0 에서 확인.
+- Ollama 형식·FAQ·설치·라이선스는 raw.githubusercontent.com 의 ollama/ollama `docs/api.md`·`docs/faq.mdx`·`README.md`·`LICENSE` 로 2026-11-13 확인(ollama.com·docs.ollama.com 은 접속 불가 → 태그·기본 양자화 미확인).
+- 환경 변수: 클라이언트 주소는 `OLLAMA_BASE_URL`(서버 바인드용 `OLLAMA_HOST` 와 충돌 방지). `.env.example` 에 `LLM_PROVIDER=fake`, `OLLAMA_MODEL`, `OLLAMA_BASE_URL` 추가.
+- 측정 스크립트 `measure_local_models.py`(사용자 PC): /api/chat 스트리밍 3회 중앙값 + /api/ps size_vram·quantization_level + nvidia-smi. 작성 환경은 서버 없음 → "건너뜀"만 확인. 테스트하지 않음.
+- 데모 [2]는 Ollama 문서 예시 숫자 + 가짜 시계, [6]은 가정값임을 출력·README 에 명시. 데모 로그는 `outputs/`(gitignore).
+
 ## Part 2 실습 상태
 
 | 실습 | 상태 |
 |---|---|
 | P2-01 next_token_prediction | **작성(2026-11-12)**. TODO 5개: temperature softmax, top-k, top-p, sample_next(greedy/sampling), generate(컨텍스트 창·max_new_tokens·eos). solution 15 passed / starter 15 skipped. README 12항목 + 서비스 관점, experiments/P2-01-20261112-next-token |
+| P2-01B local_llm_serving | **작성(2026-11-13)**. TODO 6개: Ollama 요청·응답, 스트림 파싱(TTFT·토큰/초), make_client(LLM_PROVIDER), 폴백, 사용량 CSV, (선택) 비용 비교. solution 18 passed / starter 13 skipped + 5 passed(제공 코드 테스트). README 12항목 + 서비스 관점, experiments/P2-01B-20261113-local-llm(측정 칸은 사용자 PC) |
 | P2-02 ~ P2-04, P2-S1 | 자리표시 README (순서대로 작성 예정) |
 
 ## P2-01 메모
@@ -100,7 +110,7 @@
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 141 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- 루트 `pytest`: 159 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
 - ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 3건(2026-11-12 기준)이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다. 사용자가 진행 중인 `tokenizer/starter.py`(60349ae)도 손대지 않았다.
 
 ## 환경 메모
@@ -121,4 +131,4 @@
 - HINT 1 문구를 "글자 경계를 확인하지 않고 decode 하면 한글이 깨질 수 있음"으로 조건 명시.
 
 ## 다음에 재개할 첫 단계
-Part 1 메인 5개와 P2-01 이 작성되었다. 사용자가 "다음"이라고 하면 ①의 지시에 따라 P2-02(Claude API 기초)를 시작한다. Anthropic SDK 코드는 claude-api 스킬로 현재 형태를 확인해 작성한다.
+Part 1 메인 5개, P2-01, P2-01B 가 작성되었다. 사용자가 "다음"이라고 하면 ①의 지시에 따라 P2-02(Claude API 기초)를 시작한다. P2-01B 의 ClaudeClient·Usage 를 재사용할 수 있다. Anthropic SDK 코드는 claude-api 스킬로 현재 형태를 확인해 작성한다.

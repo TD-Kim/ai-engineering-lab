@@ -42,10 +42,13 @@
 | 주차 | 실습 ID | 내용 |
 |---|---|---|
 | W5 | P2-01 | 다음 토큰 예측과 샘플링: **로컬 소형 모델(Qwen2.5-0.5B, Apache-2.0)** 로 logits·temperature·top-k·top-p, 컨텍스트 길이 |
+| W5(–6) | P2-01B | **로컬 LLM 서빙과 공급자 교체:** Ollama 로컬 서버를 API처럼 호출, 공통 `LLMClient`(Claude·로컬·가짜)로 설정 교체, TTFT·토큰/초·VRAM 측정(RTX 3070) |
 | W5 | P2-02 | **Claude API 기초:** 토큰 세기, 메시지·시스템 프롬프트 구조, 구조화 출력, 스트리밍 |
 | W6 | P2-03 | **비용·지연:** 프롬프트 캐싱, 배치, 토큰 사용량 기록 |
 | W6 | P2-04 | **프롬프트 vs RAG vs Fine-tuning 선택 기준** (+ LoRA 개념) |
 | 선택 | P2-S1 | loss·역전파·학습 루프·LoRA 직접 구현 (`loss/`, `backpropagation/`, `training/`) |
+
+> P2-01B의 공급자 인터페이스(`LLMClient`)는 Part 4 엔티티·관계 추출(P4-02/03)의 Claude vs 로컬 LLM 비교와 Part 6 AI 서버(P6-01~03의 공급자 교체·타임아웃·폴백)에서 재사용한다.
 
 ### Part 3 — RAG ([part3_rag](../part3_rag/README.md))
 | 주차 | 실습 ID | 내용 |

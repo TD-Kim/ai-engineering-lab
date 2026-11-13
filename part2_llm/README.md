@@ -15,10 +15,13 @@
 | 디렉터리 | 실습 ID | 구분 | 주차 |
 |---|---|---|---|
 | [next_token_prediction](./next_token_prediction/README.md) | P2-01 | 메인 | W5 |
+| [local_llm_serving](./local_llm_serving/README.md) | P2-01B | 메인 | W5(–6) |
 | [llm_api](./llm_api/README.md) | P2-02, P2-03 | 메인 | W5–6 |
 | [finetuning](./finetuning/README.md) | P2-04 | 메인 | W6 |
 | [loss](./loss/README.md) | P2-S1 | 선택 | — |
 | [backpropagation](./backpropagation/README.md) | P2-S1 | 선택 | — |
 | [training](./training/README.md) | P2-S1 | 선택 | — |
+
+> P2-01B의 공급자 인터페이스(`LLMClient`)는 Part 4 엔티티·관계 추출의 로컬 LLM 비교와 Part 6 AI 서버에서 재사용한다.
 
 주차별 세부 계획: [LEARNING_ROADMAP](../docs/LEARNING_ROADMAP.md)

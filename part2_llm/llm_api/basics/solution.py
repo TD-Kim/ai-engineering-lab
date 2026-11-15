@@ -85,6 +85,7 @@ def build_messages(history: Sequence[tuple[str, str]], user_text: str) -> list[d
     역할은 user 로 시작해 user/assistant 가 번갈아야 하고, 마지막은 반드시 user 다. 어기면 ValueError.
     """
     # TODO 1
+    # REF: claude-api 스킬 python/claude-api/README.md "Multi-Turn Conversations", https://platform.claude.com/docs/en/api/messages/create
     # 개념: Claude API 의 대화는 상태가 없다(stateless). 서버가 이전 대화를 기억하지 않으므로,
     #       매 요청에 지금까지의 대화 전체를 messages 로 다시 보낸다.
     #       [{"role": "user", "content": "연차 신청은 며칠 전까지 해야 해?"},
@@ -112,6 +113,7 @@ def build_request(
 ) -> dict:
     """client.beta.messages.create(**req) / .stream(**req) 에 그대로 넘길 인자 사전."""
     # TODO 1 (이어서)
+    # REF: claude-api 스킬 python/claude-api/README.md "System Prompts"·"Extended Thinking"(effort), shared/model-migration.md (fallbacks "default")
     # 개념: system = "역할·규칙·출력 형식" (모든 턴에 공통), messages = "대화 내용" (턴마다 바뀜).
     #       예) system="당신은 사내 규정 안내원입니다. 근거 문서에 없는 내용은 모른다고 답하세요."
     # 개념(effort): 이 모델은 thinking(답 전에 생각하기)을 끌 수 없고, 얼마나 깊이 생각할지를 effort 로 고른다.
@@ -154,6 +156,7 @@ class ResponseView:
 def read_response(message) -> ResponseView:
     """Message 객체를 읽어 ResponseView 로. 예외를 내지 않는다(판단은 ensure_complete)."""
     # TODO 2
+    # REF: claude-api 스킬 python/claude-api/README.md "Stop Reasons"·"Refusal Fallbacks", https://platform.claude.com/docs/en/api/messages/create
     # 개념: 응답 content 는 블록 목록이다. [thinking 블록, text 블록, ...]. 이 모델은 thinking 원문을 돌려주지 않아(빈 블록일 수 있음)
     #       사용자에게 보여 줄 답은 type == "text" 인 블록뿐이다. content[0].text 를 바로 읽으면 첫 블록이 thinking 일 때 깨진다.
     # 개념(stop_reason): 왜 멈췄나. end_turn(정상) · max_tokens(상한에서 잘림) · refusal(거절) · stop_sequence · tool_use · pause_turn.
@@ -230,6 +233,7 @@ def with_json_schema(request: dict, schema_model: type[BaseModel]) -> dict:
 def parse_structured(message, schema_model: type[BaseModel]) -> BaseModel:
     """stop_reason 을 먼저 검사(ensure_complete)한 뒤 text 를 schema_model 로 검증한다. 검증 실패는 StructuredOutputError."""
     # TODO 3 (이어서)
+    # REF: Pydantic 문서 "Models — model_validate_json" https://docs.pydantic.dev/latest/concepts/models/
     # WHY(순서): 거절·잘림이면 text 가 비었거나 JSON 이 중간에 끊겨 있다. 검증부터 하면 "JSON 오류"로 보여 진짜 원인(거절·잘림)을 놓친다.
     #       (SDK 의 messages.parse(output_format=...) 는 받자마자 검증해 이 순서를 지키기 어렵다 — README §4-2)
     # 서비스 관점: 검증 실패는 조용히 넘기지 말고 원문 일부(개인정보 주의)·오류를 기록하고, 재요청 또는 사람 검토로 보낸다.
@@ -254,6 +258,7 @@ class StreamOutcome:
 def consume_stream(stream_cm, start: float, clock: Callable[[], float] = time.perf_counter, on_text: Callable[[str], None] | None = None) -> StreamOutcome:
     """client.beta.messages.stream(**req) 가 돌려준 컨텍스트 매니저를 with 로 열어 텍스트를 모으고, 최종 메시지를 받는다."""
     # TODO 4
+    # REF: claude-api 스킬 python/claude-api/streaming.md, https://platform.claude.com/docs/en/build-with-claude/streaming
     # 개념: 스트리밍은 답을 조각(text_delta)마다 받는다. stream.text_stream 은 텍스트 조각만 차례로 준다(thinking 조각은 빠진다).
     #       다 받은 뒤 stream.get_final_message() 로 완성된 메시지(usage·stop_reason·model)를 얻는다.
     #       with 블록을 써야 중간에 오류가 나도 연결이 닫힌다.
@@ -294,6 +299,8 @@ class CostEstimate:
 def estimate_cost(sdk, request: dict, expected_output_tokens: int | None = None, prices: dict = PRICES_PER_MTOK) -> CostEstimate:
     """sdk.messages.count_tokens 로 입력 토큰을 센 뒤 예상·최대 비용(USD)을 계산한다."""
     # TODO 5
+    # REF: claude-api 스킬 shared/token-counting.md, https://platform.claude.com/docs/en/build-with-claude/token-counting ,
+    #      가격 https://platform.claude.com/docs/en/about-claude/pricing (작성 시점 2026-10)
     # 개념: count_tokens 는 모델을 실행하지 않고 "이 요청의 입력이 몇 토큰인가"만 돌려준다(P1-01 count_with_claude.py).
     #       토큰 수는 모델(토크나이저)마다 다르므로 실제로 부를 모델 ID 를 넣는다. 다른 회사 토크나이저(tiktoken 등)로 세면 틀린다.
     #       system·output_config(스키마)도 입력 토큰에 들어가므로 같이 넘긴다. betas·fallbacks 는 세기와 무관해 넘기지 않는다.
@@ -318,7 +325,7 @@ def estimate_cost(sdk, request: dict, expected_output_tokens: int | None = None,
 # ---------------------------------------------------------------------------
 @dataclass
 class ErrorDecision:
-    kind: str                     # rate_limit | server | client | connection | unknown
+    kind: str                     # rate_limit | server | transient | client | connection | unknown
     retry: bool                   # 잠시 뒤 다시(또는 다른 공급자로) 시도할 가치가 있는가
     retry_after_s: float | None = None
 
@@ -326,6 +333,7 @@ class ErrorDecision:
 def classify_error(exc: BaseException) -> ErrorDecision:
     """SDK 예외를 종류별로 나눈다. 하위 클래스가 상위 클래스보다 먼저 검사되어야 한다."""
     # TODO 6
+    # REF: claude-api 스킬 python/claude-api/README.md "Error Handling"·"Retries", https://platform.claude.com/docs/en/api/errors
     # 개념(예외 계층): RateLimitError(429)·InternalServerError(5xx, 과부하 529 포함)·BadRequestError(400) ... ⊂ APIStatusError ⊂ APIError
     #       APITimeoutError ⊂ APIConnectionError ⊂ APIError   (설치된 anthropic 2.6.0 에서 확인)
     #       isinstance 로 위에서부터 검사하므로, APIStatusError 를 먼저 보면 RateLimitError 도 거기 걸려 "429 인지" 를 놓친다.
@@ -344,6 +352,10 @@ def classify_error(exc: BaseException) -> ErrorDecision:
         return ErrorDecision("rate_limit", True, after)
     if isinstance(exc, anthropic.InternalServerError):
         return ErrorDecision("server", True)
+    if isinstance(exc, anthropic.APIStatusError) and exc.status_code in (408, 409):
+        # 408(요청 시간 초과)·409(충돌)도 SDK 가 자동 재시도하는 일시 오류다 → 위 주석과 같게 재시도 가능으로 본다.
+        # (여기 도착했다면 SDK 재시도는 이미 실패한 것 — 잠시 뒤 다시 하거나 다른 공급자로 넘기는 것은 호출부가 정한다)
+        return ErrorDecision("transient", True)
     if isinstance(exc, anthropic.APIStatusError):
         return ErrorDecision("client", False)
     if isinstance(exc, anthropic.APIConnectionError):

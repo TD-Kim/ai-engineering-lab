@@ -11,6 +11,7 @@ REF: claude-api 스킬 python/claude-api/README.md·streaming.md (작성 시점 
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 import time
@@ -18,12 +19,48 @@ from datetime import datetime
 from pathlib import Path
 
 LAB_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(LAB_DIR))
 
-import solution as m
-from run_demo import SENTENCE
+
+def _load(name: str, filename: str):
+    """같은 폴더의 파일을 "고유한 이름"으로 불러온다. `import solution` 처럼 흔한 이름을 쓰면
+    다른 실습의 solution 모듈이 이미 sys.modules 에 있을 때 그것을 잘못 받는다(테스트에서 실제로 겪은 문제)."""
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, LAB_DIR / filename)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # dataclass 가 자기 모듈을 찾을 수 있게 먼저 등록
+    spec.loader.exec_module(mod)
+    return mod
+
+
+m = _load("p2_02_solution_for_call_claude", "solution.py")
+SENTENCE = _load("p2_02_run_demo_for_call_claude", "run_demo.py").SENTENCE
 
 LOG = LAB_DIR / "outputs" / "usage_real.csv"
+
+
+def fmt_ms(value: float | None) -> str:
+    """TTFT 등 없을 수 있는 시간 값을 표시. 텍스트 조각 없이 끝난 스트림(즉시 거절 등)은 TTFT 가 None 이다."""
+    return "측정 없음" if value is None else f"{value:.0f} ms"
+
+
+def report_stream(out) -> tuple[str, bool]:
+    """스트리밍 결과 요약 한 줄과, 화면에 찍힌 텍스트를 정상 답으로 써도 되는지(ok)를 돌려준다.
+
+    스트림은 텍스트를 받는 대로 화면에 찍으므로, 끝난 뒤 최종 메시지로 거절·잘림을 확인해
+    "위 텍스트는 정상 답이 아님"을 분명히 알린다(폴백 모델까지 거절하면 받은 부분을 답으로 쓰지 않는다).
+    """
+    usage = out.final.usage
+    base = (f"TTFT {fmt_ms(out.ttft_ms)} (thinking 포함), 전체 {fmt_ms(out.total_ms)}, "
+            f"stop_reason={out.final.stop_reason}, usage=({usage.input_tokens}, {usage.output_tokens})")
+    try:
+        view = m.ensure_complete(out.final)
+    except m.RefusalError as e:
+        return f"[스트리밍] 거절됨({e.category}) — 위에 찍힌 텍스트는 정상 답이 아닙니다. {base}", False
+    except m.TruncatedError:
+        return f"[스트리밍] max_tokens 에서 잘림 — 위 텍스트는 미완성입니다. {base}", False
+    note = f", 폴백 모델 {view.served_by} 가 답함" if view.fell_back else ""
+    return f"[스트리밍] {base}{note}", True
 
 
 def main() -> None:
@@ -61,8 +98,8 @@ def main() -> None:
         sreq = m.build_request(m.build_messages([], "훈민정음을 두 문장으로 소개해 주세요."), model=model, max_tokens=2000)
         start = time.perf_counter()
         out = m.consume_stream(client.beta.messages.stream(**sreq), start, on_text=lambda t: print(t, end="", flush=True))
-        print(f"\n[스트리밍] TTFT {out.ttft_ms:.0f} ms (thinking 포함), 전체 {out.total_ms:.0f} ms, stop_reason={out.final.stop_reason}, "
-              f"usage=({out.final.usage.input_tokens}, {out.final.usage.output_tokens})")
+        line, _ok = report_stream(out)
+        print("\n" + line)
         m.log_usage(LOG, m.to_usage(out.final, out.total_ms, out.ttft_ms), datetime.now().isoformat(timespec="seconds"))
     except anthropic.APIError as e:
         print(f"[오류] {type(e).__name__}: {m.classify_error(e)}")

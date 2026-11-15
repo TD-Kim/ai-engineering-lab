@@ -82,6 +82,14 @@
 - 측정 스크립트 `measure_local_models.py`(사용자 PC): /api/chat 스트리밍 3회 중앙값 + /api/ps size_vram·quantization_level + nvidia-smi. 작성 환경은 서버 없음 → "건너뜀"만 확인. 테스트하지 않음.
 - 데모 [2]는 Ollama 문서 예시 숫자 + 가짜 시계, [6]은 가정값임을 출력·README 에 명시. 데모 로그는 `outputs/`(gitignore).
 
+## ③ P2-02 검증 반영 (1e86636 PASS_WITH_NOTES)
+- call_claude.py: `report_stream`·`fmt_ms` 분리 — TTFT None 이어도 죽지 않음("측정 없음"), 스트리밍 결과도 ensure_complete 로 거절·잘림이면 "위 텍스트는 정상 답이 아님" 표시. 가짜 결과로 테스트 3개 추가.
+- call_claude.py 가 `import solution` 대신 형제 파일을 고유한 이름으로 불러옴 — 루트 pytest 에서 다른 실습의 `solution` 모듈이 sys.modules 에 남아 잘못 잡히는 문제를 실제로 겪어 수정.
+- README §4-3: 폴백 시 스트림 중간 거절(partial 유지 + fallback 블록 경계 + 같은 스트림에서 이어 씀), 비스트리밍(partial 제외), 최종 refusal 이면 받은 부분 사용 금지, 폴백 모델 과부하 시 recommended_model. §4-4: 폴백 시 message_start 가 거절된 시도 뒤 → TTFT 에 포함. 스킬 model-migration.md 폴백 절로 확인.
+- classify_error: 408·409 를 ("transient", True) 로(SDK 자동 재시도 대상과 일치), 테스트 추가. (P2-01B ClaudeClient 의 ProviderError 매핑은 408·409 미포함 — 지시대로 P2-01B solution 은 건드리지 않음, Part 6 에서 통일)
+- starter 학습 설계: P2-02 TODO 4·5·6 에 WHY, 함수별 REF(스킬 파일 + 공식 문서 주소), 정답이 드러나던 HINT 2 를 방향·API 이름 수준으로. solution 에도 같은 REF. P2-01·P2-01B starter 의 정답형 HINT 6곳도 낮춤(테스트·solution 무변경).
+- 잠재 위험(미수정, 범위 밖): P1-01 count_with_claude.py 등 선택 스크립트가 `from solution import` 를 쓴다. P1-01 테스트가 그 스크립트를 불러와 `solution` 이름을 등록하므로, 실행 순서가 바뀌면 같은 종류의 충돌이 생길 수 있다.
+
 ## P2-02 메모
 - SDK 형태 근거는 README §4-1 표(claude-api 스킬 + 설치된 anthropic 2.6.0). 요청은 `client.beta.messages.create/stream(**req)`: model·max_tokens(16000)·messages·output_config{effort: medium}·system·betas[server-side-fallback-2026-07-01]·fallbacks "default". 샘플링·thinking 끄기·prefill·강제 tool_choice 없음(테스트가 키 검사).
 - 서버 측 폴백 기본 ON: 스킬이 claude-opus-5-5 에 "Ship the opt-in from day one". 정책 거절에만 작동(429·과부하·5xx 는 그대로) — 그건 classify_error·P2-01B 공급자 폴백. Batches·Bedrock·Vertex·Foundry 는 `fallbacks=False`.
@@ -97,7 +105,7 @@
 |---|---|
 | P2-01 next_token_prediction | **작성(2026-11-12)**. TODO 5개: temperature softmax, top-k, top-p, sample_next(greedy/sampling), generate(컨텍스트 창·max_new_tokens·eos). solution 15 passed / starter 15 skipped. README 12항목 + 서비스 관점, experiments/P2-01-20261112-next-token |
 | P2-01B local_llm_serving | **작성(2026-11-13)**. TODO 6개: Ollama 요청·응답, 스트림 파싱(TTFT·토큰/초), make_client(LLM_PROVIDER), 폴백, 사용량 CSV, (선택) 비용 비교. solution 18 passed / starter 13 skipped + 5 passed(제공 코드 테스트). README 12항목 + 서비스 관점, experiments/P2-01B-20261113-local-llm(측정 칸은 사용자 PC) |
-| P2-02 llm_api/basics | **작성(2026-11-15)**. TODO 6개: build_messages/build_request, read_response/ensure_complete, with_json_schema/parse_structured, consume_stream, estimate_cost, (선택) classify_error. solution 14 passed / starter 13 skipped + 1 passed(to_usage). README 12항목 + 서비스 관점, experiments/P2-02-20261115-claude-api(실제 호출 칸은 사용자 PC) |
+| P2-02 llm_api/basics | **작성(2026-11-15)**. TODO 6개: build_messages/build_request, read_response/ensure_complete, with_json_schema/parse_structured, consume_stream, estimate_cost, (선택) classify_error. solution 17 passed / starter 13 skipped + 4 passed(to_usage, call_claude.report_stream 3개). README 12항목 + 서비스 관점, experiments/P2-02-20261115-claude-api(실제 호출 칸은 사용자 PC) |
 | P2-03 ~ P2-04, P2-S1 | 자리표시 README (순서대로 작성 예정). P2-03 은 part2_llm/llm_api/cost_latency/ 예정 |
 
 ## P2-01 메모
@@ -121,7 +129,7 @@
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 173 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- 루트 `pytest`: 176 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
 - ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 3건(2026-11-12 기준)이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다. 사용자가 진행 중인 `tokenizer/starter.py`(60349ae)도 손대지 않았다.
 
 ## 환경 메모

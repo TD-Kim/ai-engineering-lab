@@ -179,6 +179,8 @@ def _errors():
         "overloaded": anthropic.OverloadedError("busy", response=resp(529), body=None),
         "bad": anthropic.BadRequestError("bad", response=resp(400), body=None),
         "auth": anthropic.AuthenticationError("auth", response=resp(401), body=None),
+        "req_timeout": anthropic.RequestTimeoutError("408", response=resp(408), body=None),
+        "conflict": anthropic.ConflictError("409", response=resp(409), body=None),
         "timeout": anthropic.APITimeoutError(request=req),
         "conn": anthropic.APIConnectionError(request=req),
     }
@@ -192,6 +194,8 @@ def test_classify_error_order(impl):
     assert (impl.classify_error(e["overloaded"]).kind, impl.classify_error(e["overloaded"]).retry) == ("server", True)
     for k in ("bad", "auth"):
         assert (impl.classify_error(e[k]).kind, impl.classify_error(e[k]).retry) == ("client", False)
+    for k in ("req_timeout", "conflict"):                                  # SDK 가 자동 재시도하는 일시 오류
+        assert (impl.classify_error(e[k]).kind, impl.classify_error(e[k]).retry) == ("transient", True)
     for k in ("timeout", "conn"):
         assert (impl.classify_error(e[k]).kind, impl.classify_error(e[k]).retry) == ("connection", True)
     assert impl.classify_error(ValueError("bug")).kind == "unknown"
@@ -211,3 +215,40 @@ def test_run_demo_runs(impl, capsys, tmp_path):
         sys.argv = argv
     out = capsys.readouterr().out
     assert "훈민정음" in out and "RefusalError" in out and (tmp_path / "u.csv").exists()
+
+
+# --- (선택 스크립트) call_claude.report_stream: 가짜 결과 -------------------
+@pytest.fixture(scope="module")
+def call_claude():
+    """call_claude.py 를 불러온다(main 은 부르지 않음 — 네트워크 없음). 스크립트는 형제 파일을 고유한 이름으로 불러온다."""
+    spec = importlib.util.spec_from_file_location("p2_02_call_claude_test", LAB_DIR / "call_claude.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def outcome(final, ttft_ms=900.0, total_ms=1500.0):
+    return NS(text="".join(b.text for b in final.content if b.type == "text"), final=final, ttft_ms=ttft_ms, total_ms=total_ms)
+
+
+def test_report_stream_normal_and_fallback(call_claude):
+    line, ok = call_claude.report_stream(outcome(msg([("text", "답")])))
+    assert ok and "TTFT 900 ms" in line and "stop_reason=end_turn" in line
+    line, ok = call_claude.report_stream(outcome(msg([("text", "답")], model="claude-opus-5",
+                                                     iterations=[NS(type="fallback_message")])))
+    assert ok and "폴백 모델 claude-opus-5" in line
+
+
+def test_report_stream_refusal_without_text_does_not_crash(call_claude):
+    # 텍스트 조각 없이 거절로 끝난 스트림: ttft_ms 가 None 이어도 죽지 않고, 정상 답이 아님을 표시
+    line, ok = call_claude.report_stream(outcome(msg([], stop_reason="refusal"), ttft_ms=None))
+    assert not ok and "거절됨" in line and "측정 없음" in line
+
+
+def test_report_stream_mid_stream_refusal_and_truncation(call_claude):
+    line, ok = call_claude.report_stream(outcome(msg([("text", "부분 답")], stop_reason="refusal",
+                                                     stop_details=NS(category="bio", explanation=None))))
+    assert not ok and "정상 답이 아닙니다" in line and "bio" in line
+    line, ok = call_claude.report_stream(outcome(msg([("text", "중간까지")], stop_reason="max_tokens")))
+    assert not ok and "잘림" in line
+

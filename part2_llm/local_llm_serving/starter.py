@@ -94,7 +94,7 @@ def parse_chat_response(obj: Mapping) -> tuple[str, int, int]:
     #         필드가 없으면 "" / 0 으로 둡니다(message 자체가 없을 수도 있음).
     # 개념: prompt_eval_count = 입력 토큰 수, eval_count = 출력 토큰 수, *_duration 은 나노초.
     # HINT 1: 없는 키에서 멈추지 않도록 기본값을 주는 조회 방법을 쓰세요.
-    # HINT 2: (obj.get("message") or {}).get("content", ""), int(obj.get("eval_count", 0))
+    # HINT 2: dict.get(키, 기본값) 을 쓰세요. message 자체가 없을 수 있으니 두 단계(message → content)로 꺼냅니다.
     # 서비스 관점: 토큰 수는 그 모델의 토크나이저 기준 — Claude 의 input_tokens 와 숫자를 그대로 비교하면 안 된다(P1-01).
     raise NotImplementedError("TODO 1")
 
@@ -249,7 +249,7 @@ def generate_with_fallback(clients: Sequence, prompt: str) -> tuple[str, Usage, 
     #         ProviderError("all providers failed: " + "; ".join(errors)). ProviderError 가 아닌 오류는 잡지 마세요.
     # 개념: 주 공급자가 일시 장애면 보조 공급자로 답한다 → 서비스가 멈추지 않는다.
     # HINT 1: try/except 를 for 안에 두고, 잡는 예외 종류를 좁히세요.
-    # HINT 2: except ProviderError as e: errors.append(...); continue
+    # HINT 2: except 에는 ProviderError 하나만 적고, 실패를 기록한 뒤 continue 로 다음 공급자로 넘어가세요.
     # WHY(ProviderError 만): 잘못된 요청·버그는 다른 공급자에서도 실패하거나 문제를 숨긴다.
     # 서비스 관점: 폴백 응답은 품질·형식이 다를 수 있다 → 누가 답했는지(usage.provider) 기록, 폴백 비율 모니터링(Part 6).
     raise NotImplementedError("TODO 4")
@@ -291,7 +291,7 @@ def local_cost_per_mtok(tokens_per_sec: float, watts: float, price_per_kwh: floa
     # TODO 6 (이어서): tokens_per_sec <= 0 이면 ValueError. 100만 토큰 생성 시간(시간 단위) hours 를 구해
     #         전기료(와트 × 시간 / 1000 × kWh 단가) + 장비 감가(hardware_per_hour × 시간)를 반환하세요.
     # 개념: 예) 60 토큰/초, 250 W → 16,667 초 ≈ 4.63 시간 → 1.16 kWh. 로컬도 0 원이 아니다(전기·장비).
-    # HINT: hours = 1_000_000 / tokens_per_sec / 3600
+    # HINT: 먼저 100만 토큰을 만드는 데 걸리는 "초"를 구하고, 시간 단위로 바꾸세요(1 시간 = 3600 초).
     # 서비스 관점: 로컬 = 프라이버시·오프라인·고정 비용, API = 동시 처리량·품질·운영 부담 없음. 트래픽 양과 패턴으로 고른다.
     raise NotImplementedError("TODO 6")
 

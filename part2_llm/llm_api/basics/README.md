@@ -80,11 +80,19 @@ SDK의 `messages.parse(output_format=Model)`는 받자마자 텍스트를 검증
 - **헤더 주의:** `"default"` 형식은 `server-side-fallback-2026-07-01`, 배열 형식(`[{"model": ...}]`)은 `server-side-fallback-2026-06-01`을 씁니다. 바꿔 쓰면 400입니다.
 - **사용할 수 없는 곳:** Batches API에서는 거부되고, Amazon Bedrock·Vertex AI·Microsoft Foundry에서는 쓸 수 없습니다(SDK 미들웨어가 대안). 그런 플랫폼에서는 `build_request(..., fallbacks=False)`로 끕니다.
 - **응답 읽기:** 폴백이 일어났는지는 `usage.iterations`의 `fallback_message`로 판단합니다. sticky routing으로 이어진 턴에는 `fallback` 블록이 없기 때문입니다. 답한 모델은 `message.model`입니다. 폴백 모델은 원래 모델의 thinking 블록을 읽지 못합니다.
-- **과금:** 시도별 사용량은 `usage.iterations`에 있습니다. 출력이 나오기 전에 거절된 경우의 과금은 공식 문서 "How refusals are billed"를 확인하세요(https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback). 스트림 중간 거절은 정상 요금이고, 이미 받은 부분은 버립니다.
+- **답이 나오던 중 거절되면 (폴백 켜짐):**
+  - **스트리밍:** 이미 받은 부분(partial)은 **그대로 유지**됩니다. 경계에 `fallback` 블록이 생기고, **같은 스트림에서** 폴백 모델이 이어 씁니다. partial의 text 블록만 폴백 모델에 이어 쓰기 문맥으로 넘어갑니다. 그래서 `text_stream`을 이어 붙인 결과에는 거절된 모델이 쓴 앞부분과 폴백 모델이 쓴 뒷부분이 함께 들어 있습니다.
+  - **비스트리밍:** 거절된 partial을 **빼고** 폴백 모델의 답만 돌려줍니다.
+  - **최종 `stop_reason`이 여전히 `refusal`이면** 폴백 모델까지 거절한 것입니다. 받은 부분을 정상 답으로 쓰면 안 됩니다. `call_claude.py`의 `report_stream`은 이때 "위에 찍힌 텍스트는 정상 답이 아닙니다"로 표시합니다.
+  - 폴백 모델이 rate limit·과부하 상태면 폴백 시도를 하지 않고 거절을 그대로 돌려줍니다. 이때 `stop_details.recommended_model`이 다시 시도할 모델을 알려 줄 수 있습니다(없으면 `null`).
+- **과금:** 시도별 사용량은 `usage.iterations`에 있습니다(최상위 `usage`는 반환된 메시지를 만든 시도만). 스트림 중간 거절은 정상 요금이고, 폴백 시도는 폴백 모델 단가입니다. 출력 전 거절의 과금은 공식 문서 "How refusals are billed"를 확인하세요(https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback).
+- 이 절은 claude-api 스킬 `shared/model-migration.md`의 refusal·server-side `fallbacks` 절(Key semantics)로 확인했습니다(작성 시점 2026-11).
 
 ### 4-4. Claude의 TTFT에는 thinking이 들어간다 — 로컬 모델과 공정하게 비교하기
 
 `text_stream`의 첫 텍스트 조각은 thinking이 끝난 **뒤**에 옵니다. 그래서 이 실습의 TTFT는 네트워크 + 입력 처리(prefill) + thinking 시간이고, effort가 높을수록 길어집니다. thinking 토큰도 `usage.output_tokens`로 과금됩니다(응답에 있으면 `usage.output_tokens_details.thinking_tokens`가 따로 알려 줌). P2-01B의 Ollama TTFT(thinking 없는 소형 모델)와 숫자만 나란히 놓으면 공정하지 않습니다.
+
+**폴백이 일어나면 TTFT가 더 길어집니다.** 출력 전 거절로 폴백되면 `message_start`가 거절된 시도가 끝난 **뒤**에 옵니다. 그래서 첫 응답까지의 시간에 거절된 시도 시간이 포함됩니다(claude-api 스킬 `shared/model-migration.md`). TTFT를 비교할 때는 `fell_back` 여부를 함께 기록해 폴백된 요청을 따로 봅니다.
 
 공정 비교 방법:
 1. **같은 지표 이름을 쓴다**: 양쪽 모두 "요청 → 첫 **보이는 텍스트**"로 재고, effort(Claude)·모델 크기·양자화(로컬)를 함께 기록한다.
@@ -152,7 +160,7 @@ python part2_llm/llm_api/basics/call_claude.py      # 선택, 유료
 ```
 
 - 테스트는 키·네트워크가 필요 없습니다. 응답은 가짜 Message, SDK는 가짜 객체, 시계는 가짜 시계입니다. 스레드·대기 반복이 없습니다.
-- `IMPL=starter`에서도 제공 코드만 검사하는 테스트 1개(`to_usage` + P2-01B `log_usage` 연결)는 통과합니다. 나머지 13개가 TODO 미구현으로 skip입니다.
+- `IMPL=starter`에서도 제공 코드만 검사하는 테스트 4개(`to_usage` + P2-01B `log_usage` 연결, `call_claude.report_stream` 3개)는 통과합니다. 나머지 13개가 TODO 미구현으로 skip입니다.
 - 오류 분류 테스트는 설치된 `anthropic`·`httpx2`로 실제 예외 객체를 만들어 검사합니다(네트워크 없음).
 
 ## 7. TODO 목록
@@ -164,7 +172,7 @@ python part2_llm/llm_api/basics/call_claude.py      # 선택, 유료
 | 3 | `with_json_schema`, `parse_structured` | `output_config.format`(transform_schema) 합치기, 거절·잘림 먼저 → Pydantic 검증 → `StructuredOutputError` |
 | 4 | `consume_stream` | `with` 안에서 `text_stream` 소비·TTFT·`get_final_message()` |
 | 5 | `estimate_cost` | `count_tokens`(system·output_config 포함, betas 제외) → 예상·최대 비용 |
-| 6 (선택) | `classify_error` | RateLimit → InternalServer → APIStatus → APIConnection 순서, retry-after |
+| 6 (선택) | `classify_error` | RateLimit → InternalServer → 408/409(일시 오류) → APIStatus → APIConnection 순서, retry-after |
 
 제공 코드: `RefusalError`·`TruncatedError`·`StructuredOutputError`, `Triple`·`Extraction`(Pydantic), `ResponseView`·`StreamOutcome`·`CostEstimate`·`ErrorDecision`, `to_usage`, P2-01B에서 불러온 `Usage`·`ProviderError`·`log_usage`.
 

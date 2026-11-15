@@ -80,7 +80,7 @@ def softmax_with_temperature(logits: torch.Tensor, temperature: float = 1.0) -> 
     #       예) 점수 [2, 1, 0]:  T = 1 → [0.665, 0.245, 0.090],  T = 0.5 → [0.867, 0.117, 0.016],  T = 2 → [0.506, 0.307, 0.186]
     #       순서(1 등)는 그대로, "얼마나 1 등에 몰리는지"만 바뀐다.
     # HINT 1: 나눗셈 한 번, softmax 한 번입니다. 직접 exp 를 쓰기보다 라이브러리 softmax 가 안전합니다(넘침 방지).
-    # HINT 2: torch.softmax(logits / temperature, dim=-1)
+    # HINT 2: torch.softmax 에 "나눈 점수"를 넣고, 어느 축으로 합이 1 이 되게 할지(dim, 후보가 놓인 마지막 축) 정하세요.
     # WHY(T > 0): T = 0 은 0 으로 나누기. "항상 1 등"은 greedy(TODO 4)로 따로 처리한다.
     # 서비스 관점: 낮은 T = 일관된 답(분류·추출·코드), 높은 T = 다양한 답(아이디어·창작).
     raise NotImplementedError("TODO 1")
@@ -95,7 +95,7 @@ def top_k_filter(logits: torch.Tensor, k: int) -> torch.Tensor:
     # 개념: 확률이 아주 낮은 후보도 샘플링하면 가끔 뽑힌다. 상위 k 개 밖은 후보에서 뺀다.
     #       예) [2, 1, 0, -1], k = 2 → [2, 1, -inf, -inf] → softmax [0.73, 0.27, 0, 0]
     # HINT 1: 먼저 "k 번째로 큰 점수"를 구하고, 그보다 작은 칸을 지웁니다(동점은 남김).
-    # HINT 2: torch.topk(logits, k).values[-1], logits.masked_fill(조건, float("-inf"))
+    # HINT 2: torch.topk 결과의 values 중 마지막이 k 번째 점수입니다. 그보다 작은 칸은 Tensor.masked_fill 로 -inf 로 바꿉니다.
     # WHY(-inf): e^(-inf) = 0 이라 softmax 뒤 확률이 정확히 0 (P1-05 마스크와 같은 방법).
     # 서비스 관점: k 가 고정이라 확실할 때도 애매할 때도 같은 수를 남긴다 → top-p(TODO 3)의 동기.
     raise NotImplementedError("TODO 2")
@@ -160,7 +160,7 @@ def generate(
     #         eos_id 가 나오면(포함해서) 멈춥니다. 새로 만든 토큰 목록을 반환하세요.
     # 개념: "the cat" → sat → "the cat sat" → on → ... (자기회귀 생성). 창을 넘는 앞부분은 모델이 "잊는다".
     # HINT 1: 반복은 횟수가 정해진 for 로 하세요(eos 가 안 나와도 반드시 끝나게).
-    # HINT 2: for _ in range(max_new_tokens): logits = model(ids[-context_window:]) ...
+    # HINT 2: 반복 횟수는 max_new_tokens 로 정하고, "목록의 뒤에서 W 개"는 음수 인덱스 슬라이스로 얻습니다.
     # WHY(최대 길이): API 의 max_tokens 와 같은 역할. 출력 토큰 = 비용이므로 상한은 비용 상한이기도 하다.
     # 서비스 관점: 출력 길이에 비례해 시간이 든다(P1-05). 입력이 길수록 첫 토큰이 늦다(TTFT).
     raise NotImplementedError("TODO 5")

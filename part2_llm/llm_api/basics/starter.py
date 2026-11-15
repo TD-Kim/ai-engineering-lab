@@ -90,9 +90,10 @@ def build_messages(history: Sequence[tuple[str, str]], user_text: str) -> list[d
     # 개념: Claude API 의 대화는 상태가 없다. 매 요청에 지금까지의 대화 전체를 다시 보낸다.
     #       [user "연차 신청은 며칠 전까지?", assistant "(규정 답)", user "반차도 같아?"] ← 앞 대화가 마지막 질문의 문맥.
     # HINT 1: 먼저 목록을 만들고, 그다음 한 번 훑으며 역할 순서를 검사하세요.
-    # HINT 2: for i, m in enumerate(messages): expected = "user" if i % 2 == 0 else "assistant"
+    # HINT 2: enumerate 로 각 메시지의 위치(i)를 함께 받고, 위치의 짝·홀로 기대하는 역할을 정해 비교하세요.
     # WHY(마지막은 user): assistant 로 끝내 답의 앞부분을 채우는 prefill 은 이 모델에서 400. 형식 강제는 구조화 출력(TODO 3).
     # 서비스 관점: 대화가 길수록 입력 토큰(비용·TTFT)이 는다 → 요약·잘라내기·캐싱(P2-03).
+    # REF: claude-api 스킬 python/claude-api/README.md "Multi-Turn Conversations", https://platform.claude.com/docs/en/api/messages/create
     raise NotImplementedError("TODO 1")
 
 
@@ -110,10 +111,11 @@ def build_request(
     #         system 이 있으면 "system" 을, fallbacks 가 True 면 "betas": [FALLBACK_BETA] 와 "fallbacks": "default" 를 더하세요.
     # 개념: system = 역할·규칙·출력 형식(모든 턴 공통), messages = 대화 내용. thinking 은 끌 수 없고 깊이는 effort(기본 medium, 명시).
     # HINT 1: 필수 키로 사전을 먼저 만들고, 조건에 따라 키를 추가하세요.
-    # HINT 2: req["betas"] = [FALLBACK_BETA]; req["fallbacks"] = "default"
+    # HINT 2: 폴백은 두 키가 짝입니다 — 베타 목록 키(상수 FALLBACK_BETA)와 폴백 모드 키(문자열 값). 형식은 README §4-3.
     # WHY(max_tokens 16000): thinking + 답변을 합친 출력 상한. 작으면 생각만 하다 잘린다. 동시에 한 요청의 최대 비용(TODO 5).
     # WHY(fallbacks="default"): 정책 거절 시 같은 호출 안에서 권장 모델로 재실행. rate limit·과부하·서버 오류는 폴백하지 않는다.
     # 서비스 관점: 바뀌지 않는 지시만 system 에. 현재 시각·사용자 이름을 넣으면 캐싱이 깨진다(P2-03).
+    # REF: claude-api 스킬 python/claude-api/README.md "System Prompts"·"Extended Thinking"(effort), shared/model-migration.md (fallbacks "default")
     raise NotImplementedError("TODO 1")
 
 
@@ -139,8 +141,10 @@ def read_response(message) -> ResponseView:
     # 개념: content 는 블록 목록 [thinking, text, ...]. 사용자에게 보일 답은 text 블록뿐 — content[0].text 를 바로 읽으면 깨진다.
     #       거절도 HTTP 200 이다 → stop_reason 을 먼저 본다.
     # HINT 1: 블록·iteration 은 속성이 없을 수도 있다고 가정하고 안전하게 읽으세요.
-    # HINT 2: getattr(block, "type", None), getattr(message.usage, "iterations", None) or []
+    # HINT 2: getattr(객체, "이름", 기본값) 은 속성이 없을 때 기본값을 돌려줍니다. iterations 는 None 일 수 있습니다.
+    # WHY(iterations 로 판단): sticky routing 으로 폴백 모델이 바로 답한 턴에는 fallback 블록이 없다. usage.iterations 가 기준이다.
     # 서비스 관점: 폴백·잘림·거절은 지표로 남긴다(Part 6 P6-04).
+    # REF: claude-api 스킬 python/claude-api/README.md "Stop Reasons"·"Refusal Fallbacks", https://platform.claude.com/docs/en/api/messages/create
     raise NotImplementedError("TODO 2")
 
 
@@ -148,7 +152,7 @@ def ensure_complete(message) -> ResponseView:
     """read_response 후 refusal 이면 RefusalError, max_tokens 이면 TruncatedError. 아니면 view 반환."""
     # TODO 2 (이어서): read_response 결과의 stop_reason 이 "refusal" 이면 RefusalError(stop_details.category 또는 None),
     #         "max_tokens" 이면 TruncatedError(view.text). 아니면 view 를 반환하세요.
-    # HINT: details = getattr(message, "stop_details", None)
+    # HINT: stop_details 자체가 없을 수도 있으니(위 getattr 방법) 안전하게 읽은 뒤 category 를 꺼내세요.
     # WHY(category 는 참고만): stop_details 는 없을 수 있다. 분기는 stop_reason 으로만.
     raise NotImplementedError("TODO 2")
 
@@ -172,7 +176,7 @@ def with_json_schema(request: dict, schema_model: type[BaseModel]) -> dict:
     #         schema = anthropic.transform_schema(schema_model.model_json_schema())  (원래 request 는 바꾸지 않음)
     # 개념: 구조화 출력 = 답이 JSON 스키마를 따르도록 API 가 보장. {"triples": [{"subject": .., "relation": .., "object": ..}]}
     # HINT 1: 사전 펼치기 {**a, "key": v} 로 effort 를 잃지 않게 합치세요.
-    # HINT 2: import anthropic; dict(request)
+    # HINT 2: 스키마 변환 함수는 anthropic 패키지 최상위에 있습니다(transform_schema). 얕은 복사는 dict(...).
     # 서비스 관점: "JSON 으로 답해"라는 부탁만으로는 가끔 문장이 섞여 파이프라인이 멈춘다. 스키마 강제가 다음 단계(Part 4)를 안정시킨다.
     # REF: claude-api 스킬 output_config.format (python/claude-api/sdk-upgrade.md), https://platform.claude.com/docs/en/build-with-claude/structured-outputs
     raise NotImplementedError("TODO 3")
@@ -183,7 +187,9 @@ def parse_structured(message, schema_model: type[BaseModel]) -> BaseModel:
     # TODO 3 (이어서): ensure_complete(message) 로 먼저 거절·잘림을 걸러 내고, view.text 를 schema_model.model_validate_json 으로 검증하세요.
     #         pydantic ValidationError 는 StructuredOutputError 로 바꿔 올립니다(원인 연결: raise ... from e).
     # WHY(순서): 거절·잘림이면 JSON 이 비었거나 끊겨 있다. 검증부터 하면 진짜 원인을 놓친다.
+    # HINT: Pydantic 모델의 JSON 문자열 검증 메서드는 model_validate_json 입니다. 예외 연결은 raise ... from e.
     # 서비스 관점: 검증 실패는 기록하고 재요청 또는 사람 검토로 보낸다.
+    # REF: Pydantic 문서 "Models — model_validate_json" https://docs.pydantic.dev/latest/concepts/models/
     raise NotImplementedError("TODO 3")
 
 
@@ -206,8 +212,11 @@ def consume_stream(stream_cm, start: float, clock: Callable[[], float] = time.pe
     # 개념: text_stream 은 텍스트 조각만 준다(thinking 제외). 최종 usage·stop_reason 은 get_final_message() 에서.
     #       TTFT 에는 thinking 시간이 포함된다(첫 텍스트는 생각이 끝난 뒤).
     # HINT 1: with 블록 안에서 반복과 get_final_message 를 모두 하세요(블록을 나오면 연결이 닫힘).
-    # HINT 2: for piece in stream.text_stream: ...
+    # HINT 2: with 로 연 stream 객체에는 반복 가능한 text_stream 속성과 get_final_message() 메서드가 있습니다.
+    # WHY(with 블록 안에서): 블록을 나오면 연결이 닫혀 최종 메시지를 받을 수 없다. 오류가 나도 with 가 연결을 정리한다.
+    # WHY(빈 조각은 TTFT 아님): 내용 없는 조각이 먼저 올 수 있다. 사용자가 "보기 시작한" 시각을 재야 한다.
     # 서비스 관점: 긴 답·큰 max_tokens 는 스트리밍이 체감 대기와 타임아웃 위험을 줄인다. 중간 거절은 최종 stop_reason 으로 확인.
+    # REF: claude-api 스킬 python/claude-api/streaming.md, https://platform.claude.com/docs/en/build-with-claude/streaming
     raise NotImplementedError("TODO 4")
 
 
@@ -234,8 +243,12 @@ def estimate_cost(sdk, request: dict, expected_output_tokens: int | None = None,
     # 개념: count_tokens 는 모델을 실행하지 않고 입력 토큰 수만 센다. 토큰 수는 모델마다 다르니 실제 모델 ID 로.
     #       최대 비용 = (입력 × 입력 단가 + max_tokens × 출력 단가) / 1,000,000. thinking 도 출력 토큰으로 과금된다.
     # HINT 1: request 에서 세기에 필요한 키만 골라 넘기세요(betas·fallbacks 는 넣지 않음).
-    # HINT 2: for key in ("system", "output_config"): if key in request: kwargs[key] = request[key]
+    # HINT 2: system·output_config 는 요청에 "있을 때만" 넘깁니다(in 으로 확인). 결과 객체의 input_tokens 를 읽습니다.
+    # WHY(실제 모델 ID): 토큰 수는 모델(토크나이저)마다 다르다. 다른 토크나이저로 세면 Claude 토큰을 잘못 센다.
+    # WHY(상한 = max_tokens): 출력은 실행 전에 모르지만 max_tokens 를 넘지 않는다 → 최대 비용을 미리 막을 수 있다.
     # 서비스 관점: 요청 전에 상한을 계산해 두면 한 요청이 예산을 넘지 않게 막을 수 있다.
+    # REF: claude-api 스킬 shared/token-counting.md, https://platform.claude.com/docs/en/build-with-claude/token-counting ,
+    #      가격 https://platform.claude.com/docs/en/about-claude/pricing (작성 시점 2026-10)
     raise NotImplementedError("TODO 5")
 
 
@@ -253,12 +266,16 @@ def classify_error(exc: BaseException) -> ErrorDecision:
     """SDK 예외를 종류별로 나눈다. 하위 클래스가 상위 클래스보다 먼저 검사되어야 한다."""
     # TODO 6 (선택): 아래 순서로 isinstance 검사해 ErrorDecision 을 반환하세요.
     #         RateLimitError → ("rate_limit", True, retry-after 헤더를 float 로, 없거나 숫자가 아니면 None)
-    #         InternalServerError → ("server", True) / APIStatusError(그 밖의 4xx) → ("client", False)
+    #         InternalServerError → ("server", True) / APIStatusError 이고 status_code 가 408·409 → ("transient", True)
+    #         / APIStatusError(그 밖의 4xx) → ("client", False)
     #         APIConnectionError(시간 초과 포함) → ("connection", True) / 그 밖 → ("unknown", False)
     # 개념: RateLimitError·InternalServerError ⊂ APIStatusError 이다. 상위 클래스를 먼저 검사하면 하위 클래스 분기에 도달하지 못한다.
     # HINT 1: 가장 구체적인(하위) 예외부터 검사하세요.
-    # HINT 2: exc.response.headers.get("retry-after"), import anthropic
+    # HINT 2: 429 예외 객체의 response.headers 에서 "retry-after" 를 읽습니다(없거나 숫자가 아닐 수 있음).
+    # WHY(순서): 상위 클래스(APIStatusError)를 먼저 검사하면 RateLimitError 의 "몇 초 뒤" 정보를 잃는다.
+    # WHY(408·409 재시도 가능): SDK 도 자동 재시도하는 일시 오류다. 여기 왔다면 SDK 재시도는 이미 실패 — 다음 행동은 호출부가 정한다.
     # 서비스 관점: SDK 가 이미 max_retries 만큼 재시도한 "뒤"의 판단 — 안내·폴백(P2-01B)·즉시 오류.
+    # REF: claude-api 스킬 python/claude-api/README.md "Error Handling"·"Retries", https://platform.claude.com/docs/en/api/errors
     raise NotImplementedError("TODO 6")
 
 

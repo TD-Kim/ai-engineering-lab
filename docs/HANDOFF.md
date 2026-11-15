@@ -14,7 +14,8 @@
 | 5 | 새 Word2Vec 메인 실습 P1-03 | a8ef12d | 완료(③ PASS, 사소 권장 1건은 6단계 커밋에 반영) |
 | 6 | 새 Transformer 메인 실습 P1-05 | 7204c31 → 검증 반영 093a0fa | 완료(③ PASS_WITH_NOTES 반영) — Part 1 메인 5개 모두 작성 |
 | 7 | Part 2 첫 실습 P2-01 다음 토큰 예측·샘플링 | e401983 → 검증 반영 f87c91a | 완료(③ PASS_WITH_NOTES 반영) |
-| 8 | P2-01B 로컬 LLM 서빙과 공급자 교체 (사용자 결정으로 추가) | 문서 93dce4d + 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) |
+| 8 | P2-01B 로컬 LLM 서빙과 공급자 교체 (사용자 결정으로 추가) | 문서 93dce4d + 6ac51fd | 완료(③ 검증 — 권장 사항은 P2-02 에서 반영: refusal 폴백, TTFT 의 thinking) |
+| 9 | P2-02 Claude API 기초 | 이 HANDOFF 를 갱신한 커밋 | 완료(검증 대기) |
 
 ## Part 1 실습 상태
 
@@ -81,13 +82,23 @@
 - 측정 스크립트 `measure_local_models.py`(사용자 PC): /api/chat 스트리밍 3회 중앙값 + /api/ps size_vram·quantization_level + nvidia-smi. 작성 환경은 서버 없음 → "건너뜀"만 확인. 테스트하지 않음.
 - 데모 [2]는 Ollama 문서 예시 숫자 + 가짜 시계, [6]은 가정값임을 출력·README 에 명시. 데모 로그는 `outputs/`(gitignore).
 
+## P2-02 메모
+- SDK 형태 근거는 README §4-1 표(claude-api 스킬 + 설치된 anthropic 2.6.0). 요청은 `client.beta.messages.create/stream(**req)`: model·max_tokens(16000)·messages·output_config{effort: medium}·system·betas[server-side-fallback-2026-07-01]·fallbacks "default". 샘플링·thinking 끄기·prefill·강제 tool_choice 없음(테스트가 키 검사).
+- 서버 측 폴백 기본 ON: 스킬이 claude-opus-5-5 에 "Ship the opt-in from day one". 정책 거절에만 작동(429·과부하·5xx 는 그대로) — 그건 classify_error·P2-01B 공급자 폴백. Batches·Bedrock·Vertex·Foundry 는 `fallbacks=False`.
+- 구조화 출력: `output_config.format` + `anthropic.transform_schema(Model.model_json_schema())`. `messages.parse` 는 즉시 검증해 거절·잘림을 가리므로 쓰지 않고 stop_reason 먼저 검사(설치된 SDK lib/_parse 확인).
+- TTFT 에 thinking 포함, 로컬 모델과 공정 비교 4조건(README §4-4) — ③ 권장 반영.
+- P2-01B 의 Usage·ProviderError·log_usage 를 파일 경로로 불러 재사용(`_load_p2_01b`, 모듈명 p2_01b_local_llm_serving_for_p2_02).
+- 스크래치 변이 6개(오류 분류 순서, 검증 먼저, content[0], 폴백 refusal 미확인, with 밖 get_final_message, prefill 허용) 모두 테스트 실패 확인.
+- requirements/part2.txt 에 anthropic·pydantic·python-dotenv 추가(제목도 "LLM 활용 원리"로 정정).
+
 ## Part 2 실습 상태
 
 | 실습 | 상태 |
 |---|---|
 | P2-01 next_token_prediction | **작성(2026-11-12)**. TODO 5개: temperature softmax, top-k, top-p, sample_next(greedy/sampling), generate(컨텍스트 창·max_new_tokens·eos). solution 15 passed / starter 15 skipped. README 12항목 + 서비스 관점, experiments/P2-01-20261112-next-token |
 | P2-01B local_llm_serving | **작성(2026-11-13)**. TODO 6개: Ollama 요청·응답, 스트림 파싱(TTFT·토큰/초), make_client(LLM_PROVIDER), 폴백, 사용량 CSV, (선택) 비용 비교. solution 18 passed / starter 13 skipped + 5 passed(제공 코드 테스트). README 12항목 + 서비스 관점, experiments/P2-01B-20261113-local-llm(측정 칸은 사용자 PC) |
-| P2-02 ~ P2-04, P2-S1 | 자리표시 README (순서대로 작성 예정) |
+| P2-02 llm_api/basics | **작성(2026-11-15)**. TODO 6개: build_messages/build_request, read_response/ensure_complete, with_json_schema/parse_structured, consume_stream, estimate_cost, (선택) classify_error. solution 14 passed / starter 13 skipped + 1 passed(to_usage). README 12항목 + 서비스 관점, experiments/P2-02-20261115-claude-api(실제 호출 칸은 사용자 PC) |
+| P2-03 ~ P2-04, P2-S1 | 자리표시 README (순서대로 작성 예정). P2-03 은 part2_llm/llm_api/cost_latency/ 예정 |
 
 ## P2-01 메모
 - 모델: 다운로드 없는 단어 `BigramLM`(제공, Part 1 말뭉치, alpha=0.001). "모델 = 토큰 목록 → 다음 토큰 logits 함수" 인터페이스라 같은 `generate`가 Qwen 에서도 동작.
@@ -110,7 +121,7 @@
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 159 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- 루트 `pytest`: 173 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
 - ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 3건(2026-11-12 기준)이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다. 사용자가 진행 중인 `tokenizer/starter.py`(60349ae)도 손대지 않았다.
 
 ## 환경 메모
@@ -131,4 +142,4 @@
 - HINT 1 문구를 "글자 경계를 확인하지 않고 decode 하면 한글이 깨질 수 있음"으로 조건 명시.
 
 ## 다음에 재개할 첫 단계
-Part 1 메인 5개, P2-01, P2-01B 가 작성되었다. 사용자가 "다음"이라고 하면 ①의 지시에 따라 P2-02(Claude API 기초)를 시작한다. P2-01B 의 ClaudeClient·Usage 를 재사용할 수 있다. Anthropic SDK 코드는 claude-api 스킬로 현재 형태를 확인해 작성한다.
+Part 1 메인 5개, P2-01, P2-01B, P2-02 가 작성되었다. 사용자가 "다음"이라고 하면 ①의 지시에 따라 P2-03(비용·지연: 프롬프트 캐싱·배치·사용량 기록, part2_llm/llm_api/cost_latency/)을 시작한다. P2-02 의 build_request·estimate_cost·to_usage 를 재사용한다. Anthropic SDK 코드는 claude-api 스킬로 현재 형태를 확인해 작성한다(캐싱: shared/prompt-caching.md, 배치: python/claude-api/batches.md — 배치에서는 서버 측 fallbacks 가 거부됨).

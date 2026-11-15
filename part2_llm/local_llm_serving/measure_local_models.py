@@ -17,6 +17,7 @@ REF: Ollama API 문서 /api/chat, /api/ps (github.com/ollama/ollama docs/api.md,
 from __future__ import annotations
 
 import csv
+import importlib.util
 import json
 import statistics
 import subprocess
@@ -26,17 +27,33 @@ import urllib.request
 from pathlib import Path
 
 LAB_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(LAB_DIR))
 
-from solution import (
-    DEFAULT_OLLAMA_HOST,
-    OllamaClient,
-    ProviderError,
-    build_chat_payload,
-    http_post_lines,
-    parse_chat_stream,
-    parse_nvidia_smi_memory,
-)
+
+def _load_sibling(filename: str):
+    """같은 폴더의 파일을 "실습별 고유 이름"으로 불러온다.
+
+    `from solution import ...` 처럼 흔한 이름으로 불러오면, 다른 실습의 solution 모듈이 이미 sys.modules 에 있을 때
+    그것을 잘못 받는다(한 프로세스에서 여러 실습 스크립트를 쓸 때, 테스트에서 실제로 겪은 문제). sys.path 도 건드리지 않는다.
+    """
+    name = f"lab_{LAB_DIR.parent.name}_{LAB_DIR.name}_{Path(filename).stem}"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, LAB_DIR / filename)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # dataclass 가 자기 모듈을 찾을 수 있게 먼저 등록
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_sol = _load_sibling("solution.py")
+DEFAULT_OLLAMA_HOST = _sol.DEFAULT_OLLAMA_HOST
+OllamaClient = _sol.OllamaClient
+ProviderError = _sol.ProviderError
+build_chat_payload = _sol.build_chat_payload
+http_post_lines = _sol.http_post_lines
+parse_chat_stream = _sol.parse_chat_stream
+parse_nvidia_smi_memory = _sol.parse_nvidia_smi_memory
+
 
 PROMPT = "대한민국의 수도와 그 도시의 특징을 세 문장으로 설명해 주세요."
 OUT = LAB_DIR / "outputs" / "local_models.csv"

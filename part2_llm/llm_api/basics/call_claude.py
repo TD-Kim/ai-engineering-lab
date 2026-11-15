@@ -21,9 +21,13 @@ from pathlib import Path
 LAB_DIR = Path(__file__).resolve().parent
 
 
-def _load(name: str, filename: str):
-    """같은 폴더의 파일을 "고유한 이름"으로 불러온다. `import solution` 처럼 흔한 이름을 쓰면
-    다른 실습의 solution 모듈이 이미 sys.modules 에 있을 때 그것을 잘못 받는다(테스트에서 실제로 겪은 문제)."""
+def _load_sibling(filename: str):
+    """같은 폴더의 파일을 "실습별 고유 이름"으로 불러온다.
+
+    `from solution import ...` 처럼 흔한 이름으로 불러오면, 다른 실습의 solution 모듈이 이미 sys.modules 에 있을 때
+    그것을 잘못 받는다(한 프로세스에서 여러 실습 스크립트를 쓸 때, 테스트에서 실제로 겪은 문제). sys.path 도 건드리지 않는다.
+    """
+    name = f"lab_{LAB_DIR.parent.name}_{LAB_DIR.name}_{Path(filename).stem}"
     if name in sys.modules:
         return sys.modules[name]
     spec = importlib.util.spec_from_file_location(name, LAB_DIR / filename)
@@ -33,8 +37,8 @@ def _load(name: str, filename: str):
     return mod
 
 
-m = _load("p2_02_solution_for_call_claude", "solution.py")
-SENTENCE = _load("p2_02_run_demo_for_call_claude", "run_demo.py").SENTENCE
+m = _load_sibling("solution.py")
+SENTENCE = _load_sibling("run_demo.py").SENTENCE
 
 LOG = LAB_DIR / "outputs" / "usage_real.csv"
 

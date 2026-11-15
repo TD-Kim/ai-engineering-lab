@@ -88,7 +88,8 @@
 - README §4-3: 폴백 시 스트림 중간 거절(partial 유지 + fallback 블록 경계 + 같은 스트림에서 이어 씀), 비스트리밍(partial 제외), 최종 refusal 이면 받은 부분 사용 금지, 폴백 모델 과부하 시 recommended_model. §4-4: 폴백 시 message_start 가 거절된 시도 뒤 → TTFT 에 포함. 스킬 model-migration.md 폴백 절로 확인.
 - classify_error: 408·409 를 ("transient", True) 로(SDK 자동 재시도 대상과 일치), 테스트 추가. (P2-01B ClaudeClient 의 ProviderError 매핑은 408·409 미포함 — 지시대로 P2-01B solution 은 건드리지 않음, Part 6 에서 통일)
 - starter 학습 설계: P2-02 TODO 4·5·6 에 WHY, 함수별 REF(스킬 파일 + 공식 문서 주소), 정답이 드러나던 HINT 2 를 방향·API 이름 수준으로. solution 에도 같은 REF. P2-01·P2-01B starter 의 정답형 HINT 6곳도 낮춤(테스트·solution 무변경).
-- 잠재 위험(미수정, 범위 밖): P1-01 count_with_claude.py 등 선택 스크립트가 `from solution import` 를 쓴다. P1-01 테스트가 그 스크립트를 불러와 `solution` 이름을 등록하므로, 실행 순서가 바뀌면 같은 종류의 충돌이 생길 수 있다.
+- (P2-02 후속, ① 판단) 선택 스크립트 6개(P1-01 count_with_claude·pretrained_tokenizer, P1-02 embed_with_openai, P2-01 run_qwen, P2-01B measure_local_models, P2-02 call_claude)를 `_load_sibling(filename)` 로 통일: 같은 폴더 파일을 `lab_<상위 폴더>_<실습 폴더>_<파일>` 이름으로 경로 로드, sys.path 수정 없음. 같은 실습의 스크립트는 같은 모듈을 공유.
+- `tests/test_script_isolation.py`: 가짜 `solution`·`run_demo` 모듈을 미리 등록한 상태(충돌 재현)에서 6개 스크립트를 한 프로세스로 불러, 각자 자기 실습의 solution 을 쓰는지·sys.path 와 흔한 이름을 건드리지 않는지·같은 실습끼리 모듈 공유하는지 검사(8개, main 미실행 — 네트워크 불필요). 옛 방식으로 되돌리면 불러오기 단계에서 실패함을 확인.
 
 ## P2-02 메모
 - SDK 형태 근거는 README §4-1 표(claude-api 스킬 + 설치된 anthropic 2.6.0). 요청은 `client.beta.messages.create/stream(**req)`: model·max_tokens(16000)·messages·output_config{effort: medium}·system·betas[server-side-fallback-2026-07-01]·fallbacks "default". 샘플링·thinking 끄기·prefill·강제 tool_choice 없음(테스트가 키 검사).
@@ -129,7 +130,7 @@
   - starter에서 `NotImplementedError`가 나면 skip("TODO 미구현: TODO n")으로 보고한다.
 - 테스트 파일명: 메인 `test_p1_0x_<이름>.py`, 선택 과제 `test_p1_0x_<이름>_advanced.py`.
 - API 호출은 테스트에서 가짜 클라이언트로 대체한다. 키는 `.env`에만, 커밋 금지.
-- 루트 `pytest`: 176 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
+- 루트 `pytest`: 184 passed, 1 skipped(P1-02A 사전학습 비교, sentence-transformers 미설치).
 - ruff: 사용자가 채운 `part1_ai_fundamentals/pytorch/starter.py`에 RUF100(쓰지 않는 noqa) 3건(2026-11-12 기준)이 있어 `--exclude`로 검사했다. 사용자 학습 파일이라 수정하지 않았다. 사용자가 진행 중인 `tokenizer/starter.py`(60349ae)도 손대지 않았다.
 
 ## 환경 메모

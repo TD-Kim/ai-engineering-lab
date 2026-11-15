@@ -12,14 +12,34 @@ REF: https://platform.claude.com/docs/en/build-with-claude/token-counting
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 from pathlib import Path
 
 LAB_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(LAB_DIR))
 
-from solution import PRICES_PER_MTOK, estimate_cost
+
+def _load_sibling(filename: str):
+    """같은 폴더의 파일을 "실습별 고유 이름"으로 불러온다.
+
+    `from solution import ...` 처럼 흔한 이름으로 불러오면, 다른 실습의 solution 모듈이 이미 sys.modules 에 있을 때
+    그것을 잘못 받는다(한 프로세스에서 여러 실습 스크립트를 쓸 때, 테스트에서 실제로 겪은 문제). sys.path 도 건드리지 않는다.
+    """
+    name = f"lab_{LAB_DIR.parent.name}_{LAB_DIR.name}_{Path(filename).stem}"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, LAB_DIR / filename)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # dataclass 가 자기 모듈을 찾을 수 있게 먼저 등록
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_sol = _load_sibling("solution.py")
+PRICES_PER_MTOK = _sol.PRICES_PER_MTOK
+estimate_cost = _sol.estimate_cost
+
 
 DEFAULT_MODEL = "claude-opus-5-5"
 SAMPLES = {

@@ -11,15 +11,38 @@ run_demo.py 와 같은 문서·질의로 결과를 비교해 보자(특히 '강�
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 from pathlib import Path
 
 LAB_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(LAB_DIR))
 
-from run_demo import CORPUS, QUERIES
-from solution import DEFAULT_EMBEDDING_MODEL, embed_texts, make_openai_embed_fn, top_k
+
+def _load_sibling(filename: str):
+    """같은 폴더의 파일을 "실습별 고유 이름"으로 불러온다.
+
+    `from solution import ...` 처럼 흔한 이름으로 불러오면, 다른 실습의 solution 모듈이 이미 sys.modules 에 있을 때
+    그것을 잘못 받는다(한 프로세스에서 여러 실습 스크립트를 쓸 때, 테스트에서 실제로 겪은 문제). sys.path 도 건드리지 않는다.
+    """
+    name = f"lab_{LAB_DIR.parent.name}_{LAB_DIR.name}_{Path(filename).stem}"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, LAB_DIR / filename)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # dataclass 가 자기 모듈을 찾을 수 있게 먼저 등록
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_demo = _load_sibling("run_demo.py")
+CORPUS = _demo.CORPUS
+QUERIES = _demo.QUERIES
+_sol = _load_sibling("solution.py")
+DEFAULT_EMBEDDING_MODEL = _sol.DEFAULT_EMBEDDING_MODEL
+embed_texts = _sol.embed_texts
+make_openai_embed_fn = _sol.make_openai_embed_fn
+top_k = _sol.top_k
 
 
 def main() -> None:

@@ -1,77 +1,10 @@
 # 아키텍처 (ARCHITECTURE)
 
-## 1. 디렉터리 구조
+> 2026-11-16 학습 방식 전환: 정해진 실습(starter/solution/tests) 방식은 폐지했습니다. 이 문서는 **최종 서비스가 어떤 구조인지**와, 직접 구현한 코드를 **어디에 두면 좋은지(제안)**를 설명합니다. 이전 방식의 규약(starter/solution/테스트 전환, 힌트 주석)은 커밋 `aa46d2f`의 이 문서에 있습니다.
 
-```text
-ai-engineering-lab/
-├── README.md
-├── docs/
-│   ├── PROJECT_PLAN.md
-│   ├── REPOSITORY_ANALYSIS.md
-│   ├── LEARNING_ROADMAP.md
-│   ├── ARCHITECTURE.md
-│   ├── ENVIRONMENT.md
-│   └── PROGRESS.md
-├── requirements/            # base.txt, dev.txt, part1.txt ~ part6.txt
-├── part1_ai_fundamentals/       # 각 실습: 메인(starter/solution/tests) + advanced/(선택: 원리 직접 구현)
-│   ├── conftest.py              # impl 픽스처 (IMPL=solution|starter, advanced/ 도 지원)
-│   ├── data/corpus_ko_en.txt    # 직접 작성한 소규모 한국어·영어 말뭉치
-│   ├── pytorch/                 # P1-04 (선수)
-│   ├── tokenizer/               # P1-01  + advanced/ (P1-01A)
-│   ├── embedding/               # P1-02  + advanced/ (P1-02A)
-│   ├── word2vec/                # P1-03  + advanced/ (P1-03A)
-│   └── transformer/             # P1-05  + advanced/ (P1-05A)
-├── part2_llm/
-│   ├── next_token_prediction/   # P2-01 로컬 소형 모델로 샘플링
-│   ├── llm_api/                 # P2-02, P2-03 Claude API (토큰·구조화 출력·스트리밍·캐싱·비용)
-│   ├── finetuning/              # P2-04 프롬프트 vs RAG vs Fine-tuning
-│   ├── loss/                    # P2-S1 (선택)
-│   ├── backpropagation/         # P2-S1 (선택)
-│   └── training/                # P2-S1 (선택)
-├── part3_rag/
-│   ├── document_loader/         # P3-01
-│   ├── chunking/                # P3-02
-│   ├── dense_retrieval/         # P3-03
-│   ├── sparse_retrieval/        # P3-04
-│   ├── hybrid_search/           # P3-05
-│   ├── reranking/               # P3-06
-│   └── evaluation/              # P3-07
-├── part4_graphrag/
-│   ├── knowledge_graph/         # P4-01
-│   ├── entity_extraction/       # P4-02
-│   ├── relationship_extraction/ # P4-03
-│   ├── graph_retrieval/         # P4-04
-│   ├── evaluation/              # P4-05
-│   └── graph_traversal/         # P4-S1 (선택)
-├── part5_finetuning/
-│   ├── embedding/               # P5-01 (+ P5-03 판단 정리)
-│   ├── reranker/                # P5-02
-│   └── llm_lora/                # P5-S1 (선택)
-├── part6_ai_service/
-│   ├── python_ai_server/        # P6-01~P6-04 FastAPI (SSE, 타임아웃·재시도, 로깅·비용 추적)
-│   └── spring_boot_server/      # P6-02~P6-04 Spring Boot
-│                                # P6-05 Docker Compose, P6-06 통합은 part6_ai_service/ 루트
-├── datasets/                # 데이터셋 설명·다운로드 방법 (원본은 커밋하지 않음)
-├── experiments/             # 실험 기록
-└── tests/                   # 여러 Part에 걸친 공통 테스트
-```
+## 1. 최종 서비스 구조
 
-각 실습 디렉터리는 내용이 채워지면 다음 형태가 된다.
-
-```text
-part1_ai_fundamentals/tokenizer/
-├── README.md                     # 12항목 + 서비스 관점
-├── starter.py                    # TODO 3~6개 + 개념/HINT/WHY/서비스 관점/REF 주석
-├── solution.py                   # 정답 + 같은 주석 체계
-├── tests/test_p1_01_tokenizer.py # pytest: IMPL=solution|starter
-├── (선택 스크립트)               # 사전학습 토크나이저, API 예시 등 — 사용자 PC 실행
-└── advanced/                     # 선택 과제: 원리 직접 구현 (기존 심화 실습)
-    ├── README.md
-    ├── starter.py, solution.py, ...
-    └── tests/test_p1_01_tokenizer_advanced.py
-```
-
-## 2. 서비스 아키텍처 (Part 6)
+만들고 싶은 기능을 고를 때는 "이것이 아래 그림의 어디에 들어가는가"를 먼저 확인하세요.
 
 ```mermaid
 flowchart LR
@@ -84,13 +17,15 @@ flowchart LR
     GR --> VDB
     RAG --> LLM[LLM: Claude API<br/>Anthropic SDK, 모델 ID는 환경 변수]
     GR --> LLM
-    RAG --> EMB[Embedding: OpenAI API]
+    RAG --> EMB[Embedding: OpenAI API 또는 로컬 모델]
     GR --> EMB
     PY -.->|SSE 스트리밍| SB
     SB -.->|SSE| U
 ```
 
-### 2-1. Python AI Server 엔드포인트(계획)
+한 줄 흐름: **사용자 → Spring Boot → Python AI 서버 → RAG/GraphRAG → 벡터DB/Neo4j → LLM**.
+
+### 1-1. Python AI Server 엔드포인트(계획)
 
 | 메서드 | 경로 | 역할 |
 |---|---|---|
@@ -102,161 +37,62 @@ flowchart LR
 | GET | `/api/v1/health` | 상태·모델 로딩 여부 |
 
 - 통신은 **REST 먼저**, gRPC는 확장 과제.
-- LLM은 Claude API, 임베딩은 OpenAI API가 기본이다. 키는 `.env`에만 두고, 모든 호출의 토큰 사용량을 로그에 남겨 **요청별 비용을 추적**한다(P6-04).
-- 외부 API 호출에는 **타임아웃과 재시도**(지수 백오프)를 두고, 실패 시 사용자에게 줄 응답을 미리 설계한다(P6-03).
+- LLM은 Claude API, 임베딩은 OpenAI API가 기본이고 로컬 모델로 바꿀 수 있게 공급자를 분리한다(개념: [P2-01B](../part2_llm/local_llm_serving/README.md), [P1-02](../part1_ai_fundamentals/embedding/README.md)). 키는 `.env`에만 두고, 모든 호출의 토큰 사용량을 로그에 남겨 **요청별 비용을 추적**한다(Part 6 비용·로깅).
+- 외부 API 호출에는 **타임아웃과 재시도**(지수 백오프)를 두고, 실패 시 사용자에게 줄 응답을 미리 설계한다.
 - Spring Boot는 응답 시간·실패를 로깅하고, 타임아웃 시 사용자에게 명확한 오류를 돌려준다.
 
-## 3. 실습 파일 규약 (starter/solution/test)
+### 1-2. 개념이 서비스의 어디에 쓰이나
 
-| 파일 | 규칙 |
+| 개념 문서 | 서비스에서 들어가는 곳 |
 |---|---|
-| `starter.py` | 구현할 부분은 `TODO <번호>:`로 표시하고 `raise NotImplementedError`로 남긴다. 각 TODO 아래 주석(§4). **실습당 TODO 3~6개** |
-| `solution.py` | starter와 **같은 함수 시그니처, 같은 TODO 번호, 같은 REF**. "왜" 주석과 shape 주석 |
-| `test_*.py` | `pytest`. 기본은 `solution`을 검증하고, 환경 변수로 `starter`를 검증할 수 있게 한다 |
-| `README.md` | 12항목 README ([PROJECT_PLAN §6-2](PROJECT_PLAN.md#6-2-디렉터리-readme-12항목)) |
+| [tokenizer](../part1_ai_fundamentals/tokenizer/README.md) | 청킹 단계의 청크 크기, 컨텍스트 창 예산, 비용 계산·추적 |
+| [embedding](../part1_ai_fundamentals/embedding/README.md) | 임베딩 호출부, Dense 검색(벡터DB 질의), GraphRAG의 Vector 검색 |
+| [transformer](../part1_ai_fundamentals/transformer/README.md) | 프롬프트에 넣을 청크 수·지연·캐싱 설계, Reranker 이해 |
+| [next_token_prediction](../part2_llm/next_token_prediction/README.md) | 답변 생성 설정·일관성 |
+| [local_llm_serving](../part2_llm/local_llm_serving/README.md) | LLM 어댑터(공급자 교체·타임아웃·폴백) |
+| [llm_api/basics](../part2_llm/llm_api/basics/README.md) | Claude 호출부(응답 검사·구조화 출력·스트리밍) → 엔티티·관계 추출, SSE |
+| [llm_api/cost_latency](../part2_llm/llm_api/cost_latency/README.md) | 프롬프트 캐싱, 색인·평가 배치, 비용 모니터링 |
 
-- TODO 번호는 **디렉터리 안에서 연속**으로 매긴다(여러 파일이어도 겹치지 않게).
-- **메인 실습은 개념은 깊게, 구현은 얕게.** 라이브러리·API를 쓰고, 손 미분·학습 루프 직접 작성 같은 원리 구현은 `advanced/`(선택 과제)에 둔다. `advanced/`는 메인과 같은 규약(starter/solution/tests)을 따른다.
-- 외부 API(Claude, OpenAI)를 부르는 코드는 **테스트에서 모킹**한다. 실제 호출 스크립트는 사용자 PC에서 실행하며, 결과를 지어내 README에 쓰지 않는다.
-- Windows에서 DataLoader(`num_workers > 0`)를 쓰는 스크립트는 반드시 `if __name__ == "__main__":` 아래에서 실행한다.
-- 난이도 표시: `starter.py`/`solution.py` 상단 docstring에 Level별 TODO 범위를 적는다. 예([transformer/advanced/solution.py](../part1_ai_fundamentals/transformer/advanced/solution.py)):
+## 2. 저장소 디렉터리
 
-  ```text
-  Level 1: Q/K/V 선형 층, 스케일드 닷-프로덕트 어텐션, causal·padding 마스크 (TODO 1~10, SelfAttention)
-  Level 2: Multi-Head Attention(헤드 분할·합치기), Feed Forward, 위치 인코딩(sinusoidal),
-           Residual + LayerNorm 으로 Encoder 블록 조립 (TODO 11~19)
-  Level 3: 문자 단위 미니 언어모델 조립·학습·생성 (TODO 20~23)
-  ```
-
-- `starter.py`는 단독 실행(`python <실습>/starter.py`)하면 `[미구현] TODO n` 목록을 출력한다.
-- **새로 만드는** 선택 스크립트(`run_demo.py`·실제 호출·측정 스크립트)는 같은 폴더의 `solution.py` 등을 `_load_sibling(filename)` 경로 로딩으로 불러온다. 모듈 이름은 `lab_<상위 폴더>_<실습 폴더>_<파일 stem>`, `sys.path`는 수정하지 않고 `from solution import`는 쓰지 않는다([tests/test_script_isolation.py](../tests/test_script_isolation.py)가 검사). 예외: 기존 `part1_ai_fundamentals/pytorch/run_demo.py`와 `advanced/` 스크립트는 `main()` 안에서 `sys.path`·`importlib.import_module`을 쓴다(테스트에서 `main()`을 부르지 않음, 바꿀 시점은 HANDOFF §3 보류 6번).
-- 테스트 파일명은 실습별로 고유하게 짓는다: `tests/test_p1_05_transformer.py`, advanced는 `advanced/tests/test_p1_05_transformer_advanced.py`. 여러 실습에 같은 이름(`test_model.py` 등)이 있으면 루트에서 `pytest`를 실행할 때 충돌한다.
-
-### 테스트 전환 방식 (starter ↔ solution)
-
-실습마다 `starter.py`/`solution.py`라는 **같은 파일 이름**을 쓰므로 `import solution`으로 불러오면 안 됩니다.
-그렇게 하면 루트에서 `pytest`를 실행할 때 `sys.modules` 캐시 때문에 **다른 실습의 solution이 불려올 수 있습니다.**
-그래서 두 가지로 이 문제를 막습니다.
-- `part1_ai_fundamentals/conftest.py`의 `impl` 픽스처가 **파일 경로 기준**으로, **고유한 모듈 이름**(`part1_<실습 디렉터리>_<impl>`)을 붙여 불러옵니다.
-- 루트 `pytest.ini`가 `--import-mode=importlib`를 켭니다.
-
-```ini
-# pytest.ini (저장소 루트)
-[pytest]
-addopts = --import-mode=importlib -q
-testpaths = part1_ai_fundamentals part2_llm tests
+```text
+ai-engineering-lab/
+├── README.md, CLAUDE.md
+├── docs/                    # 기획·로드맵·아키텍처·환경·기록
+├── requirements/            # base.txt, dev.txt, part1.txt ~ part6.txt
+├── part1_ai_fundamentals/   # 개념 README(pytorch, tokenizer, embedding, word2vec, transformer) + data/
+├── part2_llm/               # 개념 README(next_token_prediction, local_llm_serving, llm_api, ...)
+├── part3_rag/               # 주제 자리표시자(문서 로딩·청킹·Dense·Sparse·Hybrid·Rerank·평가)
+├── part4_graphrag/          # 주제 자리표시자(KG·추출·검색·평가)
+├── part5_finetuning/        # 주제 자리표시자(임베딩·Reranker·LLM LoRA)
+├── part6_ai_service/        # python_ai_server/, spring_boot_server/ — 최종 서비스 코드의 자리
+├── datasets/                # 데이터셋 설명 (대용량 원본은 커밋하지 않음)
+└── experiments/             # 실험 기록(템플릿 README)
 ```
 
-```python
-# part1_ai_fundamentals/conftest.py (요지)
-import importlib.util, os, sys
-from pathlib import Path
-import pytest
+## 3. 개념 README의 구성
 
+각 개념 폴더의 `README.md`는 목표 · 선수지식 · 핵심 개념 · 내부 원리 · 서비스 관점 · 수식 · 자주 나는 오류 · 과제(직접 만들어 볼 것) · 체크리스트 · 다음 단계 · REF로 구성하고, 맨 위에 "최종 서비스에서의 위치"를 둔다. 새 주제를 만들 때 같은 틀을 쓰되 필수는 아니다. 코드 주석은 `# 개념:` `# WHY:` `# 서비스 관점:` `# REF:` 스타일을 권장한다.
 
-def load_module(path: Path, module_name: str):
-    if module_name in sys.modules:
-        return sys.modules[module_name]
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module  # dataclass 등이 모듈을 찾을 수 있게 먼저 등록
-    spec.loader.exec_module(module)
-    return module
+## 4. 코드 권장 위치 (제안)
 
+강제 규칙이 아니라 제안입니다. 바꿔도 되지만, 바꿨다면 [PROGRESS](PROGRESS.md)의 기록에 적어 두세요.
 
-@pytest.fixture(scope="module")
-def impl(request):
-    name = os.environ.get("IMPL", "solution")                      # IMPL=starter pytest ...
-    lab_dir = Path(request.path).resolve().parent.parent           # <실습>[/advanced]/tests/test_*.py → <실습>[/advanced]/
-    rel = lab_dir.relative_to(Path(__file__).resolve().parent)     # 예: tokenizer/advanced
-    return load_module(lab_dir / f"{name}.py", "part1_" + "_".join(rel.parts) + f"_{name}")
-```
+| 만드는 것 | 권장 위치 |
+|---|---|
+| Python AI 서버 코드 | `part6_ai_service/python_ai_server/` 안에서 **기능별 모듈** — 예: `llm/`(공급자 어댑터·Claude 호출), `embeddings/`, `chunking/`, `retrieval/`(dense·sparse·hybrid·rerank), `graph/`, `api/`(FastAPI 라우터), `observability/`(토큰·비용 로그) |
+| Spring Boot 코드 | `part6_ai_service/spring_boot_server/` |
+| 한 번 해 보는 실험·비교(측정 포함) | `experiments/<YYYYMMDD>-<짧은이름>/` — [템플릿](../experiments/README.md) |
+| 재사용하지 않을 작은 연습 | `experiments/` 안의 스크립트 |
+| 데이터셋 설명 | `datasets/` |
+| 새로 필요한 라이브러리 | `requirements/partN.txt`에 이유 주석과 함께 |
 
-```python
-# <실습>/tests/test_p1_05_transformer.py — 테스트는 impl 픽스처만 받는다
-def test_qkv_projections_shapes(impl):
-    sa = impl.SelfAttention(8, d_k=4)
-    ...
-```
-
-- 실행:
-  - bash: `IMPL=starter pytest part1_ai_fundamentals/transformer`
-  - PowerShell: `$env:IMPL="starter"; pytest part1_ai_fundamentals/transformer; Remove-Item Env:IMPL`
-- `conftest.py`는 starter에서 `NotImplementedError`가 나면 실패 대신 **`skipped`(TODO 미구현: TODO n)** 로 보고합니다(`pytest_runtest_makereport` hook).
-
-## 4. 힌트 주석 규약과 예시
-
-| 태그 | 내용 | starter | solution |
-|---|---|---|---|
-| `# 개념:` | 무엇인지 쉬운 말로. **처음 보는 용어를 전제로** 자세히, 필요하면 작은 숫자 예시 | ○ | ○ |
-| `# HINT 1:` | 방향(무엇을 하는가) | ○ | |
-| `# HINT 2:` | 함수·API·자료 구조·shape | ○ | |
-| `# WHY:` | 왜 필요한가 / 빠지면 무슨 문제가 생기는가 | ○ | ○ |
-| `# 서비스 관점:` | 비용·지연·품질·설계 판단에서 어떤 의미인가 | ○ | ○ |
-| `# REF:` | 실존 논문(저자·연도·절) 또는 공식 문서 URL만. **불확실하면 생략, 지어내기 금지** | ○ | ○ |
-
-- `# 개념:`의 수준: 정규화, 행렬곱, 전치, 브로드캐스팅, `.item()`, 제자리(in-place) 연산처럼 **처음 나오는 용어는 한두 문장으로 풀어 쓴다.**
-  예) `# 개념: .item() 은 값이 하나뿐인 텐서(예: tensor(3.5))에서 파이썬 숫자 3.5 를 꺼낸다. 로그 출력이나 합계 계산에 쓴다.`
-- 힌트에 정답 코드를 넣지 않는다.
-- solution에는 같은 TODO 번호와 REF를 유지하고 shape 주석을 단다.
-
-아래 예시는 선택 과제 `transformer/advanced/`의 코드다. 이 규약이 정해지기 전에 작성되어 `# 개념:`·`# 서비스 관점:` 태그는 없다.
-
-### 예시: Scaled Dot-Product Self-Attention (TODO 7~9)
-
-[part1_ai_fundamentals/transformer/advanced](../part1_ai_fundamentals/transformer/advanced/README.md)의 `SelfAttention.forward`에서 발췌한 것입니다.
-마스크 규약은 bool이며 **True(1) = 볼 수 있음, False(0) = 가림**입니다(`padding_mask`는 1 = 실제 토큰, 0 = 패딩).
-한 query 행의 key가 전부 가려지면 softmax(−∞, …) = NaN이 됩니다. 이 문제와 해결법은 transformer README 9절에 있고, 테스트 `test_fully_masked_row_gives_nan`이 재현합니다.
-
-`starter.py`
-
-```python
-        # TODO 7: 어텐션 점수 scores (B, T, T) 를 계산하세요.
-        # HINT 1: 각 query 와 모든 key 의 유사도를 내적으로 구하고 크기를 보정합니다.
-        # HINT 2: k 의 마지막 두 차원을 바꾼 뒤 행렬곱 → (B, T, T). math.sqrt, Tensor.transpose
-        # WHY: d_k 가 크면 내적 값의 분산이 커져 softmax 가 한쪽으로 포화되고 기울기가 매우 작아집니다.
-        # REF: Vaswani et al., 2017, "Attention Is All You Need", §3.2.1
-        raise NotImplementedError("TODO 7")  # ← 이 줄을 지우고 scores 를 만드세요
-
-        # TODO 8: mask 가 있으면 가려야 할 위치(False)의 점수를 -inf 로 바꾸세요.
-        # HINT 1: softmax 이후 그 위치의 가중치가 정확히 0 이 되어야 합니다.
-        # HINT 2: Tensor.masked_fill(조건, 값) — 조건은 "가릴 위치" 이므로 mask 를 뒤집어야 합니다(~).
-        # WHY: 한 query 행 전체가 가려지면 softmax(-inf, …) = NaN 이 됩니다(README 9절). 마스크 설계 때 이 경우를 피해야 합니다.
-        # REF: Vaswani et al., 2017, §3.2.3
-        if mask is not None:
-            raise NotImplementedError("TODO 8")
-
-        # TODO 9: softmax 로 가중치 weights (B, T, T) 를 만들고 dropout 을 적용한 뒤, value 의 가중합 context (B, T, d_k) 를 구하세요.
-        # HINT 1: 마지막 차원(key 축)에 대해 확률 분포가 되어야 합니다.
-        # HINT 2: torch.softmax(..., dim=-1), self.dropout, 행렬곱 (B, T, T) @ (B, T, d_k)
-        # WHY: 잘못된 dim 으로 softmax 를 하면 각 query 의 가중치 합이 1 이 되지 않아 출력 스케일이 깨집니다.
-        # REF: Vaswani et al., 2017, §3.2.1
-        raise NotImplementedError("TODO 9")  # ← 이 줄을 지우고 weights, context 를 만드세요
-```
-
-`solution.py`
-
-```python
-        # TODO 7  REF: Vaswani et al., 2017, "Attention Is All You Need", §3.2.1
-        # (B, T, d_k) @ (B, d_k, T) -> (B, T, T)
-        # 왜 sqrt(d_k) 로 나누나: q, k 의 각 성분이 평균 0·분산 1 이면 내적의 분산은 d_k 이다.
-        # d_k 가 크면 점수 차이가 너무 커져 softmax 가 one-hot 에 가깝게 포화되고 기울기가 거의 0 이 된다.
-        scores = q @ k.transpose(-2, -1) / math.sqrt(self.d_k)
-
-        # TODO 8  REF: Vaswani et al., 2017, §3.2.3
-        # -inf 는 softmax 후 정확히 0 → 가려진 위치는 가중합에 전혀 기여하지 않는다.
-        if mask is not None:
-            scores = scores.masked_fill(~mask, float("-inf"))
-
-        # TODO 9  REF: Vaswani et al., 2017, §3.2.1
-        # softmax 의 역할: 점수를 "합이 1 인 양수 가중치"로 바꿔, 출력이 value 들의 볼록 결합(가중 평균)이 되게 한다.
-        # dim=-1 (key 축): 각 query 행마다 확률 분포. dim 을 틀리면 행 합이 1 이 아니다.
-        weights = torch.softmax(scores, dim=-1)  # (B, T, T)
-        weights = self.dropout(weights)
-        context = weights @ v  # (B, T, T) @ (B, T, d_k) -> (B, T, d_k)
-```
+- 실험에서 쓸모가 확인된 코드는 `part6_ai_service/python_ai_server/`의 모듈로 옮겨 가며 서비스를 키웁니다.
+- API 키는 저장소 루트 `.env`에만, 모델 ID·임베딩 모델은 환경 변수(`LLM_MODEL`, `EMBEDDING_MODEL`)로 바꿉니다(코드에 박지 않음).
+- 외부 API 호출은 비용이 들므로, 개발 중에는 가짜 응답으로 먼저 흐름을 확인한 뒤 실제 호출로 바꾸는 방식을 권장합니다(P2-01B의 `fake` 공급자 아이디어).
+- 테스트는 필수가 아닙니다. 필요하면 `pytest`를 직접 설정하세요([requirements/dev.txt](../requirements/dev.txt)에 포함).
 
 ## 5. 실험 기록 구조
 
-`experiments/<part>-<실습ID>-<YYYYMMDD>-<짧은이름>/` 아래에 `README.md`(목적·데이터셋·모델·하이퍼파라미터·GPU 사용량·학습 시간·결과·비교·개선점)와 결과 CSV·그림을 둔다.
-대용량 산출물(`artifacts/`, 가중치)은 커밋하지 않는다. 템플릿: [experiments/README.md](../experiments/README.md).
+`experiments/<YYYYMMDD>-<짧은이름>/` 아래에 `README.md`(목적·데이터셋·모델·하이퍼파라미터·GPU 사용량·학습 시간·결과·비교·개선점)와 결과 CSV·그림을 둔다.
+대용량 산출물(`artifacts/`, 가중치)은 커밋하지 않는다. 템플릿: [experiments/README.md](../experiments/README.md). 측정하지 않은 값은 지어내지 않고 "측정 필요"로 비워 둔다.

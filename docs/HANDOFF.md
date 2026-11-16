@@ -1,60 +1,43 @@
-# HANDOFF — 작업 세션(②) 인계 문서
+# HANDOFF — 인계 문서
 
-> 새 세션은 이 문서와 [ORCHESTRATION.md](ORCHESTRATION.md)를 먼저 읽는다. 세션 역할·메시지 규약·사용자 결정 이력·알려진 함정은 ORCHESTRATION에 있다.
-> **최신 갱신: 2026-11-16 — P2-03(bf7855b PASS) 이후 ① 지시 두 건: (A) P1-02 로컬 임베딩 옵션 `dfbc0cb`, (B) 학습 순서 안내 문서(이 문서와 같은 커밋).**
-> 방향: **개념은 깊게, 구현은 얕게 — 서비스 설계 중심.** 한 번에 한 실습만 만들고 멈춘다. 다음 실습은 사용자가 "다음"이라고 할 때 ①의 지시로 시작한다.
+> 새 세션은 이 문서와 [ORCHESTRATION.md](ORCHESTRATION.md), [CLAUDE.md](../CLAUDE.md)를 먼저 읽는다. **2026-11-16 학습 방식 전환**으로 작업 세션 ②·검증 세션 ③은 보관되었고, 운영은 **① 총괄(질문·기획 점검) + 사용자 VS Code(Claude Code)** 입니다.
 
-## 1. 완료된 작업 (최종 커밋 · ③ 판정)
+## 1. 현재 상태 (2026-11-16)
 
-| 작업 | 커밋(최초 → 검증 반영) | ③ 판정 | 비고 |
-|---|---|---|---|
-| P1-04 PyTorch 기초 | 791e412 등(방향 전환 전) | PASS_WITH_NOTES → 반영 | 사용자가 starter 를 직접 채움(a4fdc61). 손대지 않음 |
-| 방향 전환 1단계: 기획 문서 | 99a40ff | (3단계와 함께 검증) | PROJECT_PLAN·LEARNING_ROADMAP(22주)·PROGRESS·ARCHITECTURE·README |
-| 방향 전환 2단계: Part 1 심화 → `advanced/` | f655119 | (3단계와 함께 검증) | 24개 파일 git mv, 테스트명 `*_advanced.py` |
-| P1-01 Tokenizer (메인) | 16ecd91 → a8d675d → c9f495a | PASS_WITH_NOTES ×2 → 반영 후 재검증 요청, 이후 다음 실습 진행 | 청크 무한 반복 가드는 호출 횟수 방식(스레드 금지) |
-| P1-02 Embedding (메인) | e4b03e6 | PASS (사소 2건은 a8ef12d 에 반영) | |
-| P1-02 로컬 임베딩 옵션(EMBEDDING_PROVIDER) | dfbc0cb | ③ 검증 요청(A) | ① 지시(사용자 결정): 로컬 LLM 먼저·임베딩도 키 없이. P2-01B 의 LLM_PROVIDER 와 같은 설계 |
-| P1-03 Word2Vec (메인, 짧게) | a8ef12d | PASS (사소 1건은 7204c31 에 반영) | |
-| P1-05 Transformer (메인) | 7204c31 → 093a0fa | PASS_WITH_NOTES → 반영 후 재검증 요청, 이후 다음 실습 진행 | Part 1 메인 5개 완료 |
-| P2-01 다음 토큰 예측·샘플링 | e401983 → f87c91a | PASS_WITH_NOTES → 반영 | `part2_llm/conftest.py`, pytest.ini 에 part2_llm 추가 |
-| P2-01B 로컬 LLM 서빙·공급자 교체 | 93dce4d(문서) + 6ac51fd | 검증 완료, 권장(거절 폴백·TTFT 의 thinking)은 P2-02 에서 반영 | 사용자 결정으로 추가된 실습 |
-| P2-02 Claude API 기초 | 1e86636 → d01b39d → c2aded7 | 1e86636 PASS_WITH_NOTES → d01b39d 재검증 **PASS**(권장 4건 반영, 변형 6종 포착, 폴백 설명 스킬 대조 일치) · 후속 c2aded7 **PASS** | c2aded7 = 선택 스크립트 6개 경로 로딩 통일 + 격리 테스트 8개(`tests/test_script_isolation.py`) |
-| 학습 순서 안내(루트 README "지금 어디를 보면 되나", PROGRESS 학습 순서 메모, ROADMAP 의존 관계 단락, part1·part2·P1-02·P2-01B README 한 줄) | (B 커밋) | ③ 검증 요청(B) | 사용자가 순서를 바꿈: P1-01 → P2-01B → P1-02(로컬 임베딩). 의존 표는 코드(경로 로딩)·각 README §2 로 확인 |
-| CLAUDE.md(학습 도우미 규칙) + ENVIRONMENT §7 | c72bc95 | **PASS** (권장 3건은 P2-03 커밋에 반영) | |
-| P2-03 비용·지연(캐싱·배치·사용량 집계) | d1d6fbd → (검증 반영 커밋) | d1d6fbd PASS_WITH_NOTES → 권장 6건 반영, 재검증 요청 | 보류 메모 1~4(CLAUDE.md thinking disabled, ENVIRONMENT §7 순서·§2 실행 정책, ARCHITECTURE §3 `_load_sibling`·pytest.ini)도 같은 커밋 |
+- **방식**: 기획서(방향)만 두고, 사용자가 만들고 싶은 것을 골라 직접 구현. 정해진 실습 순서·starter 방식은 폐지. 안내는 [루트 README](../README.md#지금-어디를-보면-되나-학습-방식).
+- **남은 것**: 개념 README(part1·part2 + 각 `advanced/` 심화 노트), 자리표시자 README(part3~6), 문서(docs/), `requirements/`, `.env.example`, `data/corpus_ko_en.txt`.
+- **남은 .py 파일(4개, 모두 사용자가 커밋한 파일, 변경 없음)**: `part1_ai_fundamentals/pytorch/starter.py`(a4fdc61), `part1_ai_fundamentals/tokenizer/starter.py`(60349ae), `part1_ai_fundamentals/pytorch/solution.py`(a4fdc61, 사용자가 공백 1줄 수정), `check_gpu.py`(a4fdc61).
+- **삭제한 것**: part1·part2 의 starter/solution/tests/advanced 코드, 선택 스크립트(run_demo·embed_with_*·call_claude·measure_* 등), conftest.py, 루트 `tests/`·`pytest.ini`, 코드에 묶인 `experiments/` 실습 기록 → 총 80개 파일(커밋 `2d20447`). 이어서 개념 README 정리, 문서 갱신.
 
-모든 PROGRESS 상태는 `NOT_STARTED`(작성된 실습은 메모 "실습 자료 작성 완료, 학습자 확인 전"). `COMPLETED`는 사용자만.
+## 2. 이전 실습 복구
 
-마지막 확인 수치(B 커밋): 루트 `pytest` 221 passed, 1 skipped(P1-02A sentence-transformers 미설치; P1-02 공급자 테스트 6개 + 격리 1개 추가) · `ruff check . --exclude part1_ai_fundamentals/pytorch/starter.py` 통과 · 상대 링크 0 깨짐.
+이전 방식의 마지막 상태는 커밋 **`aa46d2f`**입니다(`git checkout aa46d2f`, 돌아오려면 `git switch main`).
 
-## 2. 실습별 핵심 메모 (다시 손댈 때 필요한 것)
+- 작업 환경에서 `labs-v1` 태그 push 가 HTTP 403 으로 거부되어 **태그는 원격에 없습니다.** PC에서 `git tag labs-v1 aa46d2f && git push origin labs-v1`.
+- 복구되는 것: 9개 실습(P1-04·P1-01·P1-02(로컬 임베딩 포함)·P1-03·P1-05·P2-01·P2-01B·P2-02·P2-03)의 starter·solution·tests·선택 스크립트, experiments 기록, 옛 문서(주차표 포함).
 
-- **P1-01** `part1_ai_fundamentals/tokenizer/`: 로컬 바이트 BPE(vocab 500). 청크는 offsets 로 원문 자르기, 제공 함수 `is_char_boundary`·`snap_chunk_end`·`snap_next_start`. 사용자가 starter 진행 중(60349ae) — **사용자 파일 수정 금지**.
-- **P1-02** `embedding/`: numpy, `embed_fn` 주입, `fake_embed`(글자 2-gram md5 256차원), OpenAI 실제 호출은 `embed_with_openai.py`(사용자 PC). **로컬 임베딩 옵션**: 제공 코드 `make_embed_fn(provider, role, env, ...)`(fake·openai·sentence_transformers·ollama, 기본 `EMBEDDING_PROVIDER`=fake), `embedding_prefix`(모델명에 e5 → `query: `/`passage: `, 그 밖 없음), `make_sentence_transformer_embed_fn`(모델 캐시 `_ST_MODELS`, `normalize_embeddings` 명시, 장치 자동), `make_ollama_embed_fn`(`POST {OLLAMA_BASE_URL}/api/embed` `{model, input}` → `embeddings`, 공식 docs/api.md·capabilities/embeddings.mdx 2026-11-16 확인, 모델 태그는 정하지 않음), `post_json`. 로컬 공급자에 `text-embedding-*` 모델명이 남으면 ValueError. TODO 는 5개 그대로(공급자는 제공 코드). 사용자 PC 용 `embed_with_provider.py`(--provider, role 별 함수 두 개). 테스트는 가짜 SentenceTransformer·가짜 post(다운로드·서버 없음), 변이 9종 포착. **e5 접두어는 HF 모델 카드 접속 불가로 미확인**(README 에 표기).
-- **P1-03** `word2vec/`: gensim 4.4.0, 상대 비교 테스트(cat–dog > cat–coffee), 데모 [5]는 P1-02 `fake_embed` 를 경로로 로드.
-- **P1-05** `transformer/`: 마스크 규약 True=볼 수 있음(SDPA bool 과 같음, `key_padding_mask` 는 반대). 한 행 전부 가리면 직접 계산 NaN / torch 2.15 SDPA 는 0. KV 캐시는 미리 할당한 버퍼.
-- **P2-01** `part2_llm/next_token_prediction/`: 단어 `BigramLM`(alpha 0.001), 필터 순서 T → top-k → top-p(테스트로 고정), Qwen 실제 실행은 `run_qwen.py`.
-- **P2-01B** `part2_llm/local_llm_serving/`: 공통 인터페이스 `generate(prompt) -> (text, Usage)`, Fake/Ollama/Claude, 폴백은 `ProviderError`만, 클라이언트 주소 변수 `OLLAMA_BASE_URL`(서버용 `OLLAMA_HOST` 와 구분). GPU 측정은 `measure_local_models.py`(사용자 PC).
-- **학습 순서(2026-11-16)**: 루트 README §"지금 어디를 보면 되나"의 의존 표가 기준. 코드 의존: P1-03 데모→P1-02 solution, P2-01→Part 1 말뭉치 파일, P2-02→P2-01B solution, P2-03→P2-02 solution. P1-02 필수 시점 = Part 3 전. 순서가 또 바뀌면 이 표·PROGRESS 학습 순서 메모·part1/part2 README 한 줄을 함께 고친다.
-- **P2-03** `part2_llm/llm_api/cost_latency/`: P2-02 solution 을 `_load_p2_02()`(이름 `p2_02_llm_api_basics_for_p2_03`)로 불러 `build_request`·`read_response`·`Usage`·`USAGE_FIELDS` 재사용. system = [지시문, 문서들], 마지막 system 블록에만 `cache_control`. 단가표 `PRICES`(입력·5m 쓰기·1h 쓰기·읽기·출력, 공식 가격 페이지 2026-11-16 확인: opus 5.5 = 4/5/8/0.20/20). 최소 캐시 길이 512(공식 문서). `first_divergence`는 `render_segments`(model→tools→system→messages, cache_control 제거, dict 키 순서 유지)로 비교. 배치는 `fallbacks=False`, errored 원인은 `result.error.error.type`(SDK 타입 확인, 스킬 예시와 다름). 로그는 `log_cached_usage`(P2-01B 열 + cache_write_5m·1h·read·batch), `summarize_usage_log`는 P2-01B 형식도 읽음. 실제 측정 `measure_caching.py`(3회 호출, `--batch`/`--batch-id`). 스크래치 변이 23종 모두 포착. 검증 반영: custom_id 는 `fullmatch`(끝 줄바꿈 거부), `collect_batch_results.unexpected`(보내지 않은 id), 내용+effort 동시 변경 시 settings_changed 테스트, measure 의 count_tokens 에 output_config.
-- **P2-02** `part2_llm/llm_api/basics/`: `client.beta.messages.create/stream(**req)`, req = model·max_tokens 16000·messages·output_config{effort medium}·system·betas[`server-side-fallback-2026-07-01`]·fallbacks `"default"`. 응답은 stop_reason 먼저 → text 블록만 → 검증 → 폴백 여부. `messages.parse` 대신 `output_config.format` + `anthropic.transform_schema`. 실제 호출 `call_claude.py`(유료). P2-01B 의 `Usage`·`ProviderError`·`log_usage` 를 경로로 로드해 재사용.
+## 3. 이전 방식에서 완료된 일 (요약)
 
-## 3. 보류·남은 작업
+| 작업 | 커밋 | ③ 판정 |
+|---|---|---|
+| 방향 전환 1~3단계(기획 문서, advanced/ 이동, Part 1 메인 5개) | 99a40ff · f655119 · 16ecd91 … 093a0fa | PASS 또는 PASS_WITH_NOTES(반영 완료) |
+| P2-01 샘플링, P2-01B 로컬 LLM 서빙 | e401983/f87c91a, 6ac51fd | 반영 완료 |
+| P2-02 Claude API 기초 | 1e86636 → d01b39d → c2aded7 | PASS |
+| P2-03 비용·지연 | d1d6fbd → bf7855b | PASS |
+| P1-02 로컬 임베딩 옵션 + 학습 순서 문서 | dfbc0cb · 6f9dc58 · aa46d2f | 권장 5건 반영(재검증 요청 중 방식 전환) |
+| CLAUDE.md(학습 도우미 규칙) | c72bc95 | PASS |
 
-**반영 완료(P2-03 커밋)**: 1) CLAUDE.md §6 `thinking: {"type": "disabled"}` 금지, 2) ENVIRONMENT §7 1단계 순서, 3) ENVIRONMENT §2 PowerShell 실행 정책, 4) ARCHITECTURE §3 `_load_sibling` 규칙 + pytest.ini `testpaths` 정정.
+모든 이전 실습의 상태는 `NOT_STARTED`("학습자 확인 전")였고, 상태 갱신은 학습자 확인 후입니다([PROGRESS](PROGRESS.md)).
 
-**계속 보류**(① 결정: 변경 범위를 작게 — P2-03 에도 넣지 않음):
-5. (낮은 우선순위, ③ 권장) `tests/test_script_isolation.py` 의 skip 세분화: 지금은 tokenizers·torch 중 하나라도 없으면 fixture 전체가 skip — 라이브러리별 importorskip 으로 스크립트별로만 skip.
-6. (낮은 우선순위, ③ 권장) `advanced/` 의 스크립트 9개(`run_demo.py`·`compare_*.py` 등)가 `main()` 을 테스트가 부르게 되는 시점에 `_load_sibling` 경로 로딩으로 변경.
+## 4. 열려 있는 것
 
-**기타 보류**
-- Part 0 문서: REPOSITORY_ANALYSIS 의 실제 경로, 실험 디렉터리 이름 통일.
-- P2-01B `ClaudeClient`(최소 어댑터)는 408·409 를 `ProviderError` 로 매핑하지 않음 — Part 6 에서 P2-02 요청 빌더·`classify_error` 와 통일.
-- 사용자 PC 측정이 비어 있는 실행 기록: P1-01 선택 스크립트, P1-02 OpenAI·로컬 임베딩(`experiments/P1-02-20261116-local-embedding`), P2-01 Qwen, P2-01B Ollama·VRAM, P2-02 실제 호출(모두 "측정 필요" 칸).
+- `labs-v1` 태그를 PC에서 만들어 push(위 §2).
+- 브랜치 `claude/laughing-knuth-ey4pwi`(참고 저장소 `TD-Kim/graphRAG_learning`)는 사용자가 직접 삭제 예정.
+- P1-04·P1-01 상태값 확인은 사용자가 한다(현재 표기: [PROGRESS](PROGRESS.md) "내가 만든 것 기록").
+- 이전 실습의 "사용자 PC 측정 필요" 칸(Ollama·VRAM, Qwen, OpenAI/로컬 임베딩, Claude 실제 호출 등)은 옛 기록(`aa46d2f`)에만 있고 비어 있었다. 직접 측정하면 [experiments 템플릿](../experiments/README.md)에 새로 기록한다.
+- 보류 메모(`aa46d2f` 이전 HANDOFF §3): 격리 테스트 세분화, advanced 스크립트 경로 로딩 — 코드가 삭제되어 **무효**.
+- `docs/REPOSITORY_ANALYSIS.md`의 일부 표현("`pytest` 기반 starter/solution 검증" 등)은 이전 방식 기준이다(참고 저장소 분석 문서라 그대로 둠).
 
-## 4. 다음에 재개할 첫 단계 — P2-04 (사용자 "다음" + ① 지시 후)
+## 5. 다음에 할 일
 
-- 실습: **P2-04 프롬프트 vs RAG vs Fine-tuning 선택 기준 (+ LoRA 개념)**(LEARNING_ROADMAP W6). 위치 `part2_llm/finetuning/`(현재 README 자리표시자).
-- 재사용 후보: P2-03 `cache_cost`·`summarize_usage_log`·`choose_levers`(비용·지연 근거), P2-02 `estimate_cost`. 복사하지 말고 경로 로드.
-- 규약: TODO 4~6, 가짜 객체 테스트, 실제 호출은 선택 스크립트, README 12항목 + 서비스 관점, experiments 사용자 PC 칸, ruff. 보류 5·6번은 ① 지시가 있을 때만.
-- 완료 후: 커밋·푸시 → HANDOFF 갱신 → ③ 검증 요청 → ①에 3~5줄 보고 → 대기.
+사용자가 만들고 싶은 것을 고릅니다. 추천은 ①(또는 VS Code의 Claude Code)이 [LEARNING_ROADMAP](LEARNING_ROADMAP.md)의 주제 지도와 [최종 서비스 구조](ARCHITECTURE.md#1-최종-서비스-구조)를 기준으로 합니다. 코드는 [권장 위치](ARCHITECTURE.md#4-코드-권장-위치-제안)에 둡니다.

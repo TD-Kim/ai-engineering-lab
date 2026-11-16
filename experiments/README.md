@@ -1,13 +1,13 @@
 # experiments
 
-> 상태: **자리표시자** — 실험이 생기면 아래 템플릿으로 기록한다.
+> 상태: **템플릿만 있음** — 직접 해 본 실험·측정이 생기면 아래 템플릿으로 기록한다. 이전 실습의 실행 기록은 커밋 `aa46d2f`에 있다.
 
 ## 디렉터리 규칙
 
-`experiments/<실습ID>-<YYYYMMDD>-<짧은이름>/`
+`experiments/<YYYYMMDD>-<짧은이름>/`
 
 ```text
-experiments/P3-07-20270301-hybrid-compare/
+experiments/20270301-hybrid-compare/
 ├── README.md               # 아래 템플릿
 ├── results.csv             # 지표 표 (커밋)
 ├── figures/                # 그래프 (커밋)
@@ -20,7 +20,7 @@ experiments/P3-07-20270301-hybrid-compare/
 ```markdown
 # <실험 이름>
 
-- 실습 ID:
+- 관련 주제(Part·기능):
 - 날짜:
 
 ## 목적

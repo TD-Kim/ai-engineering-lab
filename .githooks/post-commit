@@ -1,0 +1,30 @@
+#!/bin/sh
+# 커밋할 때마다 docs/TIMELINE.md 에 "언제 · 무엇을 · 어떤 함수를" 자동으로 기록하고,
+# 그 기록을 방금 만든 커밋에 함께 넣는다(커밋 메시지는 그대로).
+#
+# 켜기(저장소마다 한 번만):  git config core.hooksPath .githooks
+# 끄기:                      git config --unset core.hooksPath
+
+[ -n "$TIMELINE_HOOK_RUNNING" ] && exit 0
+
+ROOT=$(git rev-parse --show-toplevel) || exit 0
+GITDIR=$(git rev-parse --git-dir) || exit 0
+
+# 리베이스·머지 중에는 커밋을 고치지 않는다.
+[ -d "$GITDIR/rebase-merge" ] && exit 0
+[ -d "$GITDIR/rebase-apply" ] && exit 0
+[ -f "$GITDIR/MERGE_HEAD" ] && exit 0
+
+if [ -x "$ROOT/.venv/Scripts/python.exe" ]; then
+    PY="$ROOT/.venv/Scripts/python.exe"
+elif [ -x "$ROOT/.venv/bin/python" ]; then
+    PY="$ROOT/.venv/bin/python"
+else
+    PY=python
+fi
+
+cd "$ROOT" || exit 0
+"$PY" scripts/timeline.py HEAD || exit 0
+
+git add docs/TIMELINE.md
+TIMELINE_HOOK_RUNNING=1 git commit --amend --no-edit --no-verify -q

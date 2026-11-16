@@ -77,3 +77,6 @@ datasets/**/*.zip
 
 # 실험 결과 중 대용량 산출물 (요약 CSV·그림은 커밋)
 experiments/**/artifacts/
+
+# ===== 데이터 원본(큰 파일) =====
+data/raw/

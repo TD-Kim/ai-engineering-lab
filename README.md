@@ -10,13 +10,28 @@ AI 서비스 개발자로서 **RAG·GraphRAG 서비스를 설계하고 판단하
 2. **만들고 싶은 기능을 고르고**, 최종 서비스의 어디에 들어가는지 확인합니다.
 3. **직접 구현하고**, 막히면 VS Code의 Claude Code에 질문합니다. 질문 규칙은 [CLAUDE.md](CLAUDE.md)에 있습니다(정답 대신 힌트부터).
 
-## 파일
+## 구조
 
-| 파일 | 내용 |
+| 폴더·파일 | 내용 |
 |---|---|
+| [python_ai_server/](python_ai_server/README.md) | Python AI 서버 (`ai_server` 패키지: llm · embeddings · chunking · retrieval · graph · api · observability) |
+| [spring_boot_server/](spring_boot_server/README.md) | Spring Boot 서버 (나중에 시작) |
+| [experiments/](experiments/README.md) | 한 번 해 보는 연습·측정 |
+| [data/](data/README.md) | 샘플 문서·평가 세트 |
 | [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) | 기획서 (방향·구조·주제·환경·결정 이력) |
+| [docs/TIMELINE.md](docs/TIMELINE.md) | 타임라인: 언제 무엇을 만들고 어떤 함수를 썼나 (커밋할 때 자동 기록) |
 | [CLAUDE.md](CLAUDE.md) | Claude Code 학습 도우미 규칙 |
 | [.env.example](.env.example) | API 키·모델 설정 견본 (`Copy-Item .env.example .env` 후 값 채우기, `.env`는 커밋 금지) |
+
+## 처음 한 번 설정 (PowerShell, 저장소 루트)
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+uv pip install -e python_ai_server        # ai_server 패키지 설치 (코드 수정이 바로 반영됨)
+git config core.hooksPath .githooks       # 커밋할 때 타임라인 자동 기록 켜기
+```
+
+이후에는 평소처럼 커밋하면 `docs/TIMELINE.md`에 기록이 붙습니다. 커밋 메시지는 "무엇을 만들었는지" 알 수 있게 쓰세요(타임라인 제목이 됩니다).
 
 ## 이전 자료
 

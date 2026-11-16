@@ -57,13 +57,40 @@ flowchart LR
 - LLM·임베딩은 **공급자를 분리**해 설정(환경 변수)으로 Claude ↔ 로컬, OpenAI ↔ 로컬을 바꿀 수 있게 한다.
 - 외부 호출에는 타임아웃·재시도를 두고, 모든 호출의 토큰 사용량을 기록해 요청별 비용을 추적한다.
 
-### 3-2. 코드 위치 (제안, 강제 아님)
+### 3-2. 프로젝트 구조
 
-| 만드는 것 | 위치 |
-|---|---|
-| Python AI 서버 | `python_ai_server/` 안에서 기능별 모듈 — `llm/`, `embeddings/`, `chunking/`, `retrieval/`, `graph/`, `api/`, `observability/` |
-| Spring Boot 서버 | `spring_boot_server/` |
-| 한 번 해 보는 연습·실험 | `experiments/<YYYYMMDD>-<짧은이름>/` (목적·모델·설정·토큰/비용·결과를 README에) |
+```
+ai-engineering-lab/
+├─ python_ai_server/              # Python AI 서버 (패키지 이름 ai_server)
+│  ├─ pyproject.toml
+│  ├─ src/ai_server/
+│  │  ├─ llm/                     # LLM 호출부: Claude API · 로컬 모델(Ollama)
+│  │  ├─ embeddings/              # 임베딩: OpenAI · 로컬 임베딩 모델
+│  │  ├─ chunking/                # 문서 로딩·청킹
+│  │  ├─ retrieval/               # BM25 · Dense · Hybrid · Rerank
+│  │  ├─ graph/                   # GraphRAG: 엔티티·관계 추출, Neo4j
+│  │  ├─ api/                     # FastAPI 라우터 (/api/v1/*)
+│  │  └─ observability/           # 토큰·지연·비용 기록
+│  └─ tests/
+├─ spring_boot_server/            # Spring Boot 서버 (Python 서버에 첫 API가 생기면 시작)
+├─ experiments/<YYYYMMDD>-<이름>/  # 한 번 해 보는 연습·측정
+├─ data/                          # 샘플 문서·평가 세트 (큰 원본은 data/raw/, 커밋 안 함)
+├─ docs/
+│  ├─ PROJECT_PLAN.md             # 이 기획서
+│  └─ TIMELINE.md                 # 언제 무엇을 만들었나 (커밋할 때 자동 기록)
+├─ scripts/timeline.py            # 타임라인 기록 도구
+└─ .githooks/post-commit          # 커밋할 때 타임라인을 자동 기록하는 훅
+```
+
+- 각 모듈의 역할은 그 폴더의 `__init__.py`에 적혀 있다.
+- 연습으로 만든 코드라도 쓸모가 확인되면 `python_ai_server/src/ai_server/`의 모듈로 옮긴다.
+
+### 3-3. 타임라인 기록
+
+- 커밋할 때마다 `docs/TIMELINE.md`에 **날짜·시각, 커밋 메시지, 바뀐 파일, 새로 작성·수정·삭제한 함수와 클래스**가 자동으로 기록되고, 같은 커밋에 함께 들어간다.
+- 켜기(저장소를 받은 PC마다 한 번): `git config core.hooksPath .githooks`
+- 각 항목의 **메모** 칸에는 배운 점·막혔던 점·다음 할 일을 직접 적는다(Claude Code에 정리를 부탁해도 된다).
+- 커밋 메시지가 곧 타임라인 제목이 되므로, "무엇을 만들었는지" 알 수 있게 쓴다. 예: `로컬 LLM 대화: Ollama /api/chat 한 번 호출`
 
 ## 4. 주제 지도 (기획서 Part)
 
@@ -159,9 +186,13 @@ $env:PYTHONUTF8 = "1"                      # 한글 출력 깨짐 방지
 # PyTorch는 CUDA 인덱스에서 먼저 설치 (PyPI의 Windows용 torch는 CPU 전용)
 uv pip install torch --index-url https://download.pytorch.org/whl/cu128
 
-# 나머지는 필요할 때: uv pip install <패키지>
+# Python AI 서버 패키지를 편집 가능 설치 (코드를 고쳐도 다시 설치할 필요 없음)
+uv pip install -e python_ai_server
+
+# 나머지는 필요할 때: uv pip install <패키지> (또는 pyproject.toml 의 dependencies 에 추가)
 
 Copy-Item .env.example .env                # 키는 .env 에만
+git config core.hooksPath .githooks        # 커밋할 때 타임라인 자동 기록 켜기
 ```
 
 - `Activate.ps1`이 "스크립트를 실행할 수 없습니다"로 막히면 한 번만 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 실행한다(현재 사용자에게만 적용).
@@ -178,3 +209,4 @@ Copy-Item .env.example .env                # 키는 .env 에만
 | 2026-11-09 | 서비스 설계 중심: 개념은 깊게, 구현은 얕게. LLM 사전학습 제외 |
 | 2026-11-16 | 정해진 실습(starter·solution·tests) 방식 폐지 → 만들고 싶은 것을 골라 직접 구현 |
 | 2026-11-16 | 저장소 정리: 이 기획서와 필수 설정(`.gitignore`, `.env.example`, `CLAUDE.md`, `README.md`)만 남김. 이전 자료는 `aa46d2f`(실습 코드), `26f20bd`(개념 README) |
+| 2026-11-16 | 실제 프로젝트 구조(§3-2)로 시작. 커밋할 때마다 타임라인 자동 기록(§3-3) |

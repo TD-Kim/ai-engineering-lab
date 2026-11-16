@@ -17,8 +17,8 @@
 | P1-05 Transformer (메인) | 7204c31 → 093a0fa | PASS_WITH_NOTES → 반영 후 재검증 요청, 이후 다음 실습 진행 | Part 1 메인 5개 완료 |
 | P2-01 다음 토큰 예측·샘플링 | e401983 → f87c91a | PASS_WITH_NOTES → 반영 | `part2_llm/conftest.py`, pytest.ini 에 part2_llm 추가 |
 | P2-01B 로컬 LLM 서빙·공급자 교체 | 93dce4d(문서) + 6ac51fd | 검증 완료, 권장(거절 폴백·TTFT 의 thinking)은 P2-02 에서 반영 | 사용자 결정으로 추가된 실습 |
-| P2-02 Claude API 기초 | 1e86636 → d01b39d → c2aded7 | PASS_WITH_NOTES → 반영, **재검증 결과는 ②에 미수신**(①에서 확인) | c2aded7 = 선택 스크립트 6개 로딩 통일 + `tests/test_script_isolation.py` |
-| CLAUDE.md(학습 도우미 규칙) + ENVIRONMENT §7 | c72bc95 | PASS (사소 3건 보류 → §3) | |
+| P2-02 Claude API 기초 | 1e86636 → d01b39d → c2aded7 | 1e86636 PASS_WITH_NOTES → d01b39d 재검증 **PASS**(권장 4건 반영, 변형 6종 포착, 폴백 설명 스킬 대조 일치) · 후속 c2aded7 **PASS** | c2aded7 = 선택 스크립트 6개 경로 로딩 통일 + 격리 테스트 8개(`tests/test_script_isolation.py`) |
+| CLAUDE.md(학습 도우미 규칙) + ENVIRONMENT §7 | c72bc95 | **PASS** (권장 3건은 P2-03 커밋에 포함 예정 → §3) | |
 
 모든 PROGRESS 상태는 `NOT_STARTED`(작성된 실습은 메모 "실습 자료 작성 완료, 학습자 확인 전"). `COMPLETED`는 사용자만.
 
@@ -41,7 +41,8 @@
 2. `docs/ENVIRONMENT.md` §7 1단계 문장 순서를 실제 순서(clone → cd → §2 venv·설치)로.
 3. `docs/ENVIRONMENT.md` §2 에 PowerShell 실행 정책 안내: `Activate.ps1` 이 "스크립트를 실행할 수 없습니다"로 막히면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 한 번(현재 사용자에게만 적용).
 4. `docs/ARCHITECTURE.md` §3: 선택 스크립트 로딩 규칙 한 줄(`_load_sibling`, 이름 `lab_<상위>_<실습>_<파일>`) 추가, pytest.ini 예시 `testpaths` 를 실제 값 `part1_ai_fundamentals part2_llm tests` 로 정정(현재 예시는 part2_llm 누락).
-5. (낮은 우선순위) `tests/test_script_isolation.py` 의 skip 세분화: 지금은 tokenizers·torch 중 하나라도 없으면 fixture 전체가 skip — 스크립트별로 필요한 패키지만 skip 하도록.
+5. (낮은 우선순위, ③ 권장) `tests/test_script_isolation.py` 의 skip 세분화: 지금은 tokenizers·torch 중 하나라도 없으면 fixture 전체가 skip — 라이브러리별 importorskip 으로 스크립트별로만 skip.
+6. (낮은 우선순위, ③ 권장) `advanced/` 의 스크립트 9개(`run_demo.py`·`compare_*.py` 등)가 `main()` 을 테스트가 부르게 되는 시점에 `_load_sibling` 경로 로딩으로 변경.
 
 **기타 보류**
 - Part 0 문서: REPOSITORY_ANALYSIS 의 실제 경로, 실험 디렉터리 이름 통일.

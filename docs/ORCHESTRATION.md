@@ -95,4 +95,5 @@
 2. ENVIRONMENT §7 단계 순서
 3. ENVIRONMENT §2 PowerShell 실행 정책 안내
 4. ARCHITECTURE §3 선택 스크립트 규칙 + pytest.ini 예시 정정
-5. (낮음) 격리 테스트 skip 세분화
+5. (낮음) 격리 테스트 라이브러리별 importorskip 세분화
+6. (낮음) advanced 스크립트 9개는 테스트가 main() 을 부르게 될 때 경로 로딩으로 변경

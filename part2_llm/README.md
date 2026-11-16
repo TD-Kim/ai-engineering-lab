@@ -24,4 +24,6 @@
 
 > P2-01B의 공급자 인터페이스(`LLMClient`)는 Part 4 엔티티·관계 추출의 로컬 LLM 비교와 Part 6 AI 서버에서 재사용한다.
 
+> **순서를 바꿔도 되는 이유·조건 (P2-01B 먼저)**: P2-01B·P2-02·P2-03은 [P1-02](../part1_ai_fundamentals/embedding/README.md) 없이 할 수 있고(코드가 P1-02를 불러오지 않음), 학습자는 P2-01B → P1-02(로컬 임베딩) 순서를 택했습니다(2026-11-16). 조건: P2-01B README §2의 개념 선수지식(P2-01·P1-05의 prefill·decode·TTFT)을 먼저 읽고, **Part 3 전에는 P1-02를 끝냅니다.** 전체 의존 표: [루트 README](../README.md#지금-어디를-보면-되나-학습-순서진행-안내).
+
 주차별 세부 계획: [LEARNING_ROADMAP](../docs/LEARNING_ROADMAP.md)

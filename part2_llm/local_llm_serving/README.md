@@ -7,6 +7,7 @@
 | 예상 시간 | 3~4시간 (+ 사용자 PC 측정 1시간) |
 | 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p2_01b_local_llm.py`, `run_demo.py`, 선택: `measure_local_models.py`(사용자 PC, Ollama·GPU 필요) |
 | 소속 | [Part 2 — LLM 활용 원리](../README.md) |
+| 순서를 바꿔도 되나 | 됩니다. P1-02(임베딩) 없이 할 수 있고 학습자는 이 실습을 P1-02보다 먼저 합니다(2026-11-16). 조건: §2의 개념 선수지식(P2-01·P1-05)을 먼저 읽기, Part 3 전에는 P1-02를 끝내기. 의존 표: [루트 README](../../README.md#지금-어디를-보면-되나-학습-순서진행-안내) |
 
 > 방향: **개념은 깊게, 구현은 얕게.** 로컬 LLM 서버(Ollama)를 HTTP API처럼 부르고, Claude·로컬·가짜 공급자를 **같은 인터페이스**로 설정만 바꿔 교체합니다. RTX 3070에서의 속도·메모리는 사용자 PC에서 직접 잽니다.
 > transformers로 모델을 직접 불러오는 방법은 [P2-01 `run_qwen.py`](../next_token_prediction/run_qwen.py)에 있습니다(여기서는 서버 방식만).

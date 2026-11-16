@@ -55,10 +55,11 @@
 | 순서 | 기획서 순서 준수: P1-04(선수) → P1-01 → P1-02 → P1-03 → P1-05 → Part 2 … (P2-01B 는 사용자 결정으로 P2-01 뒤에 추가) |
 | Part 2 | 로컬 소형 모델(개념) + Claude API(서비스 활용) 둘 다. 프롬프트 vs RAG vs Fine-tuning 선택 기준 포함 |
 | Part 5 | 임베딩·Reranker fine-tuning 비교만(OpenAI 기준선 vs 로컬 fine-tuning 전후, "언제 값어치가 있나"). LLM LoRA 는 개념 + 선택 과제 |
-| 공급자 | LLM = Anthropic(`claude-opus-5-5`, `LLM_MODEL` 로 변경), 임베딩 = OpenAI(`text-embedding-3-small`, `EMBEDDING_MODEL`) |
+| 공급자 | LLM = Anthropic(`claude-opus-5-5`, `LLM_MODEL` 로 변경), 임베딩 = OpenAI(`text-embedding-3-small`, `EMBEDDING_MODEL`) 기본 + **로컬 임베딩 옵션**(`EMBEDDING_PROVIDER` = fake·openai·sentence_transformers·ollama, 2026-11-16 사용자 결정: 키 없이도 가능하게) |
 | 키 | 저장소 루트 `.env`에만(커밋 금지), `.env.example` 참고 |
 | 진행 상태 | `NOT_STARTED`/`IN_PROGRESS`/`COMPLETED`만(NEEDS_REVIEW 폐지). `COMPLETED`는 사용자가 확인한 뒤에만 |
 | 참고 저장소 | `TD-Kim/graphRAG_learning` 은 참고용 **읽기 전용**(푸시 금지). 브랜치 `claude/laughing-knuth-ey4pwi` 는 사용자가 직접 삭제 예정(보류) |
+| 학습 순서(2026-11-16) | 사용자가 순서를 바꿈: P1-04 → P1-01 → **P2-01B(로컬 LLM)** → **P1-02(로컬 임베딩 옵션, EMBEDDING_PROVIDER)** → …. P2-01~P2-03 은 P1-02 없이 가능, **Part 3 전 P1-02 필수**. 기록: PROGRESS "학습 순서 메모", 루트 README 의존 표 |
 | 학습 방식 | 사용자는 VS Code + 로컬 Claude Code 로 starter 를 직접 채운다 → 루트 `CLAUDE.md` 학습 규칙(작업 세션은 예외) |
 
 ## 5. 환경 제약 · 알려진 함정

@@ -1,138 +1,180 @@
-# 프로젝트 기획 (PROJECT PLAN)
+# 기획서 — AI Engineering Learning Lab
+
+> 이 저장소에 남긴 유일한 기획 문서입니다. 방향과 판단 기준만 담고, 정해진 실습 순서는 두지 않습니다.
+> 이전 자료 복구: 실습 코드가 있던 상태는 커밋 `aa46d2f`, 개념 README가 있던 상태는 커밋 `26f20bd`
+> (`git checkout <커밋>`으로 볼 수 있습니다).
 
 ## 1. 목적
 
-- **AI 서비스 개발자로서 RAG·GraphRAG 서비스를 설계하고 판단하는 능력**을 실습으로 기른다.
+- **AI 서비스 개발자로서 RAG·GraphRAG 서비스를 설계하고 판단하는 능력**을 기른다.
   - 예: 어떤 검색 방식을 쓸지, 언제 GraphRAG가 필요한지, 언제 fine-tuning이 값어치가 있는지, 비용·지연·품질을 어떻게 맞출지
-- 원리는 **깊게 이해**하되 구현은 **라이브러리·API를 사용해 얕게** 한다. 원리 직접 구현은 선택이며, 심화 개념 노트는 각 폴더 `advanced/README.md`에 남겨 두었다.
-- 최종적으로 Java/Spring Boot 경력과 결합한 **AI 서비스 포트폴리오**를 만든다.
-  진행 과정 자체(실험 기록, 비교 수치, 회고)를 포트폴리오 자산으로 관리한다.
+- 원리는 **깊게 이해**하고, 구현은 **라이브러리·API로 얕게** 한다. LLM을 처음부터 만드는 연구자 역할은 목표가 아니다.
+- 최종적으로 **Java/Spring Boot가 Python AI 서버를 호출하는 서비스**로 마무리해, 기존 Java 경력과 결합한 포트폴리오를 만든다.
 
-### 원칙 변경 이력
+## 2. 학습 방식
 
-| 날짜 | 변경 |
-|---|---|
-| 2026-11-09 | **API 기반 전환:** LLM은 Claude API, 임베딩은 OpenAI API를 기본으로 쓴다. 로컬 모델은 Part 1·2 개념 실습과 Part 5 fine-tuning에 쓴다 |
-| 2026-11-09 | **개념은 깊게, 구현은 얕게 — 서비스 설계 중심:** 기존 Part 1 심화 구현은 각 실습의 `advanced/`(선택 과제)로 옮긴다. 모든 실습에 "서비스 관점"을 넣는다 |
-| 2026-11-16 | **학습 방식 전환:** 정해진 실습 순서·starter/solution/tests 방식을 폐지한다. 기획서(방향)만 두고 사용자가 만들고 싶은 것을 골라 **직접 구현**하며, VS Code(Claude Code)와 총괄 세션에 질문한다. 기존 실습 자료는 개념 README만 남기고 코드는 지웠다(복구: 커밋 `aa46d2f`) |
+1. **만들고 싶은 기능을 고른다.** (예: 로컬 LLM 대화, 문서 청킹, Dense 검색, LLM 어댑터, 엔티티 추출, FastAPI 엔드포인트)
+2. **최종 서비스(§3)의 어디에 들어가는지 확인한다.**
+3. **필요한 개념을 묻고 이해한다.** VS Code의 Claude Code 또는 총괄 세션에 질문한다.
+4. **직접 구현한다.** 정답 코드는 요청할 때만 받는다. 기본은 방향 → API 이름 → 예시 순의 힌트.
+5. **만든 것을 키워 간다.** 연습으로 만든 코드라도 쓸모가 확인되면 서비스 모듈(§3-2)로 옮긴다.
 
-## 2. 학습 환경과 제약
+순서는 자유다. 단, **RAG(§4 Part 3)를 만들기 전에는 임베딩·코사인 유사도 개념**을 알고 있어야 한다.
 
-| 항목 | 값 | 비고 |
+## 3. 최종 서비스 구조
+
+```mermaid
+flowchart LR
+    U[사용자 / 웹 UI] -->|HTTP| SB[Spring Boot Server<br/>WebClient · DTO · SSE<br/>예외·타임아웃·로깅]
+    SB -->|REST /api/v1/*| PY[Python AI Server<br/>FastAPI]
+    PY --> RAG[RAG 파이프라인<br/>BM25 · Dense · Hybrid · Rerank]
+    PY --> GR[GraphRAG 파이프라인<br/>KG 탐색 · Graph+Vector]
+    RAG --> VDB[(Vector DB<br/>FAISS / ChromaDB)]
+    GR --> NEO[(Neo4j)]
+    GR --> VDB
+    RAG --> LLM[LLM: Claude API 또는 로컬 모델]
+    GR --> LLM
+    RAG --> EMB[Embedding: OpenAI API 또는 로컬 모델]
+    GR --> EMB
+    PY -.->|SSE 스트리밍| SB
+    SB -.->|SSE| U
+```
+
+한 줄 흐름: **사용자 → Spring Boot → Python AI 서버 → RAG/GraphRAG → 벡터DB/Neo4j → LLM**
+
+### 3-1. Python AI 서버 엔드포인트 (계획)
+
+| 메서드 | 경로 | 역할 |
 |---|---|---|
-| OS | Windows | DataLoader 사용 스크립트는 `if __name__ == "__main__":` 필수 |
-| GPU | RTX 3070, VRAM 8GB | 가능/불가능 구분은 [LEARNING_ROADMAP](LEARNING_ROADMAP.md#2-rtx-3070-8gb-학습-가능-범위) |
-| RAM | 32GB | |
-| Python | 3.12 권장 | gensim 등의 3.14 휠 부재 때문 |
-| 패키지 관리 | uv | 이 저장소 자체 `.venv` 사용 |
-| API 키 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | 사용자 PC의 `.env`에만 둔다(커밋 금지). 테스트는 API 호출을 모킹한다 |
+| POST | `/api/v1/documents` | 문서 업로드·청킹·인덱싱 |
+| POST | `/api/v1/embeddings` | 텍스트 임베딩 |
+| POST | `/api/v1/search` | BM25 / Dense / Hybrid / Hybrid+Rerank 검색 |
+| POST | `/api/v1/rag/query` | RAG 답변 생성(스트리밍 옵션) |
+| POST | `/api/v1/graphrag/query` | GraphRAG 답변 생성(스트리밍 옵션) |
+| GET | `/api/v1/health` | 상태·모델 로딩 여부 |
 
-- 참고 저장소의 `part1\.venv`(Python 3.14.7)는 **건드리지 않는다.** 새 저장소는 독립 환경을 쓴다.
-- 자세한 설치는 [ENVIRONMENT](ENVIRONMENT.md).
+- REST 먼저, gRPC는 확장 과제.
+- LLM·임베딩은 **공급자를 분리**해 설정(환경 변수)으로 Claude ↔ 로컬, OpenAI ↔ 로컬을 바꿀 수 있게 한다.
+- 외부 호출에는 타임아웃·재시도를 두고, 모든 호출의 토큰 사용량을 기록해 요청별 비용을 추적한다.
 
-## 3. 원칙
+### 3-2. 코드 위치 (제안, 강제 아님)
 
-1. **개념은 깊게, 구현은 얕게.** 처음 보는 용어도 이해할 수 있도록 코드 주석과 README에서 자세히 설명한다(`# 개념:`). 구현은 라이브러리·API를 쓰고, 실습당 TODO는 3~6개로 둔다. 손 미분·학습 루프 직접 작성 같은 원리 구현은 `advanced/` 선택 과제로 돌린다.
-2. **서비스 관점.** 모든 실습에서 "이것이 비용·지연·품질·설계 판단에 어떤 의미인가"를 설명한다(`# 서비스 관점:`).
-3. **API 기본, 로컬은 목적이 있을 때만.**
-   - LLM(답변 생성, 추출, LLM-as-judge)은 Anthropic Claude API를 쓴다. 모델 ID는 환경 변수로 바꿀 수 있게 한다.
-   - 임베딩은 OpenAI API를 쓴다.
-   - 로컬 모델은 개념 실습(Part 1·2)과 fine-tuning 비교(Part 5)에 쓴다.
-   - 이 클라우드 작업 환경에는 키가 없으므로 실제 호출 결과를 지어내지 않는다. 테스트는 모킹하고, 실제 호출 스크립트는 사용자 PC에서 실행한다.
-4. **모델 라이선스 확인.** 로컬 모델은 모델 카드의 라이선스를 기록하고, 비상업 라이선스 모델은 서비스 기본값으로 쓰지 않는다.
-5. **개선을 가정하지 않는다.** 모든 "더 좋다"는 동일 데이터셋·동일 평가 세트의 수치로만 말한다.
-6. **저작권 존중.** 참고 저장소(강의 실습 코드)의 코드·데이터는 복사하지 않고 링크로만 참고한다.
+| 만드는 것 | 위치 |
+|---|---|
+| Python AI 서버 | `python_ai_server/` 안에서 기능별 모듈 — `llm/`, `embeddings/`, `chunking/`, `retrieval/`, `graph/`, `api/`, `observability/` |
+| Spring Boot 서버 | `spring_boot_server/` |
+| 한 번 해 보는 연습·실험 | `experiments/<YYYYMMDD>-<짧은이름>/` (목적·모델·설정·토큰/비용·결과를 README에) |
 
-## 4. Part별 범위
+## 4. 주제 지도 (기획서 Part)
 
-주제 목록과 확인할 질문은 [LEARNING_ROADMAP](LEARNING_ROADMAP.md)에 있다.
+| Part | 주제 | 서비스에서의 위치 | 만들 때 확인할 질문 |
+|---|---|---|---|
+| 1 | AI 원리: 토큰·임베딩·Transformer | 청크 크기·비용 계산, Dense 검색, 컨텍스트 비용 | 토큰 수는 비용·청크 크기에 어떻게 연결되나? 코사인 유사도는 왜 정규화가 필요한가? 컨텍스트가 길면 왜 느리고 비싼가? |
+| 2 | LLM 활용: 로컬 모델 + Claude API | LLM 어댑터, 구조화 출력, 스트리밍, 캐싱·배치 | 공급자를 바꾸면 무엇이 달라지나? 대화 기록은 왜 매번 다시 보내나? 캐시는 언제 깨지나? |
+| 3 | RAG | RAG 파이프라인, `/search`·`/rag/query` | 어떤 청킹이 좋은가? BM25 vs Dense vs Hybrid vs Rerank 중 무엇이 나은가(같은 평가 세트의 수치로)? |
+| 4 | GraphRAG | GraphRAG 파이프라인, Neo4j, `/graphrag/query` | 언제 GraphRAG가 필요한가? 멀티홉 질문에서 Vector RAG보다 나은가? |
+| 5 | Fine-tuning (임베딩·Reranker) | 임베딩·Reranker 교체 | fine-tuning이 기준선(OpenAI 임베딩)보다 값어치가 있나(품질·비용·지연·운영 부담)? |
+| 6 | AI 서비스 | FastAPI + Spring Boot 전체 | 타임아웃·재시도·폴백은? 비용은 어떻게 추적하나? SSE는 어떻게 중계하나? |
 
-### Part 0 — 환경·기획
-기획·분석·로드맵·아키텍처·환경 문서, uv 환경, 디렉터리 골격.
-
-### Part 1 — AI 원리 (서비스 개발자에게 필요한 만큼)
-- **PyTorch 기초(P1-04):** 학습자가 이미 학습한 선수 실습. 그대로 둔다.
-- **Tokenizer(P1-01):** 토큰 수, 한국어/영어 차이, 비용 추정, 토큰 기준 청킹, 컨텍스트 창 맞추기. BPE 원리는 손으로 따라가는 예시로 설명한다.
-- **Embedding(P1-02):** 정규화·코사인 유사도, OpenAI 임베딩으로 문장 유사도·최근접 검색.
-- **Word2Vec(P1-03):** 분포 가설 개념과 gensim 짧은 실행.
-- **Transformer(P1-05):** 어텐션 1회 계산, 구조 그림, 컨텍스트 길이와 지연·비용의 관계, KV 캐시 개념.
-- **선택 과제(`advanced/`):** BPE·임베딩 층·Word2Vec·Transformer 직접 구현과 미니 GPT 학습(심화 개념 노트, 코드는 `aa46d2f`).
-
-### Part 2 — LLM 활용 원리 (로컬 소형 모델 + Claude API)
-- **개념(로컬 소형 모델):** 다음 토큰 예측, 샘플링(temperature, top-k, top-p), 컨텍스트. Qwen2.5-0.5B 등 Apache-2.0 모델을 쓴다.
-- **서비스 활용(Claude API):** 토큰 세기, 프롬프트 구조(시스템 프롬프트, 메시지), 구조화 출력, 스트리밍, 캐싱·배치와 비용.
-- **판단:** 프롬프트 vs RAG vs Fine-tuning 선택 기준.
-- **선택 과제:** loss·역전파·학습 루프·LoRA 직접 구현.
-
-### Part 3 — RAG
-- 문서 로딩, **청킹 전략 비교**, Dense(OpenAI 임베딩)·BM25·Hybrid(RRF, weighted) 검색, Reranker
-- **평가 세트 설계**(질문·정답 문서 만들기), IR 지표(Precision/Recall/HitRate@K, MRR, NDCG), **지연·비용 측정**
-- **완료 조건:** 동일 데이터셋에서 **BM25 vs Dense vs Hybrid vs Hybrid+Rerank** 수치 비교. 직접 구현한 Hybrid를 프레임워크 구현과 비교(§5-1)
-
-### Part 4 — GraphRAG
-- **"언제 GraphRAG가 필요한가" 판단 실험 중심.**
-- Knowledge Graph 모델링, Neo4j·Cypher 활용, LLM(Claude) 기반 엔티티·관계 추출
-- Graph + Vector 검색(neo4j-graphrag 활용)
-- **완료 조건:** Vector RAG vs GraphRAG **멀티홉 질의 정량 비교**와 선택 기준 정리
-- **선택 과제:** 그래프 탐색 알고리즘(BFS/DFS/최단경로) 직접 구현
-
-### Part 5 — Fine-tuning (임베딩·Reranker 비교)
-- **임베딩:** OpenAI 임베딩 기준선 vs 로컬 임베딩(multilingual-e5, bge-m3) fine-tuning 전후
-- **Reranker:** 적용 효과 측정, 로컬 Cross-Encoder(bge-reranker-v2-m3) fine-tuning
-- **완료 조건:** 동일 평가 세트로 "fine-tuning이 언제 값어치가 있는가"를 수치(품질·비용·지연·운영 부담)로 판단
-- **LLM LoRA/QLoRA:** 개념 설명 + 선택 과제(RTX 3070 범위)
-
-### Part 6 — AI 서비스 (가장 큰 Part)
-- FastAPI AI 서버: `/api/v1/documents`, `/api/v1/embeddings`, `/api/v1/search`,
-  `/api/v1/rag/query`, `/api/v1/graphrag/query`, `/api/v1/health`, SSE 스트리밍
-- Spring Boot: WebClient, DTO, SSE 중계, 예외 처리
-- 운영: **타임아웃·재시도**, 로깅·모니터링, **비용(토큰) 추적**, Docker(Compose)
-- 흐름: 사용자 → Spring Boot → Python AI Server → RAG/GraphRAG → VectorDB/Neo4j → Claude API
-- REST 먼저, gRPC는 확장 과제
-- **완료 조건:** RAG vs GraphRAG 비교 웹 서비스
+- **평가 지표(Part 3~5):** Precision/Recall/HitRate@K, MRR, NDCG, 질의당 지연(p50/p95), 토큰 비용.
+- **완료의 기준:** "더 좋다"는 항상 **같은 데이터셋·같은 평가 세트의 수치**로 말한다.
 
 ## 5. 사용자 강조 사항
 
-### 5-1. Hybrid Search 직접 구현 후 프레임워크와 비교
-직접 구현(BM25 + Dense + RRF/weighted)을 먼저 완성한 뒤 다음과 비교한다.
-- LangChain `EnsembleRetriever`
-- LlamaIndex `QueryFusionRetriever`
-- Haystack 하이브리드 파이프라인(`DocumentJoiner`)
-- neo4j-graphrag `HybridRetriever`
+### 5-1. Hybrid Search는 직접 구현한 뒤 프레임워크와 비교
+- 직접 구현: BM25 + Dense + 결합(RRF `score(d) = Σ 1/(k + rank_i(d))`, 또는 점수 정규화 후 가중합)
+- 비교 대상: LangChain `EnsembleRetriever`, LlamaIndex `QueryFusionRetriever`, Haystack `DocumentJoiner`, neo4j-graphrag `HybridRetriever` (결합 방식은 버전별로 확인)
+- 공정성: 같은 청크·같은 임베딩 모델·같은 K. 기본값 실행과 설정을 맞춘 실행을 둘 다 기록.
 
-비교 항목과 절차는 [LEARNING_ROADMAP §3](LEARNING_ROADMAP.md#3-hybrid-search-비교-계획).
+### 5-2. RTX 3070(8GB)에서 가능한 것과 불가능한 것
 
-### 5-2. RTX 3070에서 가능한 학습과 불가능한 학습 구분
-- LLM **사전학습은 목표에서 제외**한다.
-- 작은 Transformer 직접 학습은 **선택 과제**(`part1_ai_fundamentals/transformer/advanced/`)다.
-- 로컬 학습은 Part 5의 임베딩·Reranker fine-tuning이 중심이다. LLM LoRA/QLoRA는 선택 과제다.
+> 일반적인 경험치다. 실제 사용량은 측정해서 기록한다.
+
+| 작업 | 판정 | 비고 |
+|---|---|---|
+| 0.5~1.5B LLM 추론 | 가능 | fp16/bf16 |
+| 3B LLM 4bit 추론 | 가능 | |
+| 7~8B LLM 4bit 추론 | 조건부 | 여유 적음 |
+| 0.5~1.5B LoRA, 3B QLoRA | 가능(선택) | 1.5B LoRA는 gradient checkpointing |
+| 7~8B QLoRA | 조건부(선택) | OOM 위험 |
+| 임베딩(~0.6B)·Cross-Encoder fine-tuning | 가능 | Part 5의 기본 범위 |
+| 13B 이상 학습 | 사실상 불가 | |
+| **LLM 사전학습** | **목표에서 제외** | |
 
 ### 5-3. Spring Boot가 Python AI 서버를 호출하는 구조로 마무리
-- 진행 과정 자체를 포트폴리오로 관리하고, **주차별 점검**([PROGRESS](PROGRESS.md#주간-점검-템플릿))을 한다.
+- 진행 과정(만든 것, 측정 수치, 회고)을 포트폴리오로 남긴다.
 
-## 6. 코드·문서 규칙
+## 6. 기술 선택
 
-### 6-1. 만드는 방식 (2026-11-16 이후)
-1. 만들고 싶은 기능을 고른다 → 2. 기획서의 어느 Part인지, [최종 서비스의 어디에 들어가는지](ARCHITECTURE.md#1-최종-서비스-구조) 확인한다 → 3. 개념 README를 읽는다 → 4. **직접 구현**한다 → 5. 막히면 VS Code(Claude Code)나 총괄 세션에 질문한다.
-- 코드는 [권장 위치](ARCHITECTURE.md#4-코드-권장-위치-제안)에 둔다(제안, 강제 아님).
-- 이전 방식(실습 순서, `starter.py`/`solution.py`/`tests`, 실습당 TODO 3~6개)은 폐지했고 규약은 커밋 `aa46d2f`의 이 문서에 남아 있다.
+- **LLM:** Claude API(Anthropic SDK) 또는 로컬 모델(Ollama). 모델 ID는 환경 변수(`LLM_MODEL`)로 바꾼다.
+  - Claude 코드 규칙은 [CLAUDE.md](../CLAUDE.md) §5.
+- **임베딩:** OpenAI API(`text-embedding-3-small`) 또는 로컬 임베딩 전용 모델(multilingual-e5, bge-m3). 채팅용 LLM은 임베딩 용도로 쓰지 않는다.
+- **API 키:** 저장소 루트 `.env`에만 둔다(커밋 금지). 견본은 [.env.example](../.env.example).
+- **실행 결과는 지어내지 않는다.** 측정하지 않은 숫자는 "측정 필요"로 둔다.
 
-### 6-2. 개념 README 구성
-목표 · 선수지식 · 핵심 개념 · 내부 원리 · 서비스 관점 · 수식 · 자주 나는 오류 · 과제(직접 만들어 볼 것) · 체크리스트 · 다음 단계 · REF. 맨 위에 **"최종 서비스에서의 위치"**를 적는다.
+### 6-1. 모델과 라이선스 (사용 전에 모델 카드에서 다시 확인)
 
-### 6-3. 주석 규약 (권장)
-직접 구현한 코드에도 다음 주석 스타일을 권장한다.
+| 용도 | 모델 | 라이선스(계획 시점) | 메모 |
+|---|---|---|---|
+| LLM | Qwen2.5-0.5B / 1.5B / 7B Instruct | Apache-2.0 | 3070에는 1.5B가 무난한 시작점 |
+| LLM | **Qwen2.5-3B** Instruct | **비상업(Qwen Research)** | 학습용만, 서비스 기본값 금지 |
+| LLM | Qwen3 계열 | Apache-2.0 | |
+| 임베딩 | intfloat/multilingual-e5 (small/base/large) | MIT | 입력 접두어 규칙은 모델 카드 확인 |
+| 임베딩 | BAAI/bge-m3 | MIT | 다국어, 긴 입력 |
+| Reranker | BAAI/bge-reranker-v2-m3 | Apache-2.0 | Cross-Encoder |
+| 서빙 | Ollama | MIT(런타임) | 모델별 라이선스는 별도 |
 
-| 태그 | 내용 |
+### 6-2. 라이브러리 (필요할 때 설치)
+
+| Part | 라이브러리 |
 |---|---|
-| `# 개념:` | 무엇인지 쉬운 말로. 처음 보는 용어를 전제로, 필요하면 작은 숫자 예시 |
-| `# WHY:` | 왜 필요한가 / 빠지면 무슨 문제가 생기는가 |
-| `# 서비스 관점:` | 비용·지연·품질·설계 판단에서 어떤 의미인가 |
-| `# REF:` | 실존하는 논문(저자·연도·절) 또는 공식 문서 URL만. **불확실하면 생략, 지어내기 금지** |
+| 공통 | numpy, pandas, matplotlib, pytest, ruff |
+| 1 | PyTorch, tokenizers, gensim |
+| 2 | anthropic, requests/httpx, transformers |
+| 3 | sentence-transformers, faiss-cpu, chromadb, rank-bm25, pypdf, (비교용) LangChain·LlamaIndex·Haystack |
+| 4 | neo4j, neo4j-graphrag, networkx |
+| 5 | sentence-transformers, peft, bitsandbytes |
+| 6 | fastapi, uvicorn, sse-starlette / Java 21, Spring Boot 3.x, Gradle, Docker Desktop |
 
-### 6-4. 실험 기록
-`experiments/`에 실험마다 다음을 기록한다: 목적, 데이터셋, 모델, 하이퍼파라미터, (해당 시) GPU 사용량·학습 시간, **토큰 사용량·비용**, 결과, 비교, 개선점.
-템플릿은 [experiments/README.md](../experiments/README.md).
+- Windows에서는 `faiss-cpu`를 쓴다. Neo4j는 Docker 또는 Neo4j Desktop.
 
-### 6-5. 진행 기록
-[PROGRESS](PROGRESS.md)에 "내가 만든 것"을 기록한다(날짜·만든 기능·Part·배운 점·남은 질문). 상태값을 쓸 때는 `NOT_STARTED` / `IN_PROGRESS` / `COMPLETED` 세 가지만 쓰고, **학습자가 직접 확인한 것만 `COMPLETED`.**
+## 7. 환경 (Windows · PowerShell)
+
+| 항목 | 값 |
+|---|---|
+| OS | Windows |
+| GPU | RTX 3070, VRAM 8GB |
+| RAM | 32GB |
+| Python | 3.12 권장 (일부 라이브러리의 3.14 지원 부족) |
+| 패키지 관리 | uv |
+
+```powershell
+git clone https://github.com/TD-Kim/ai-engineering-lab
+cd ai-engineering-lab
+uv python install 3.12
+uv venv --python 3.12 .venv
+.\.venv\Scripts\Activate.ps1
+$env:PYTHONUTF8 = "1"                      # 한글 출력 깨짐 방지
+
+# PyTorch는 CUDA 인덱스에서 먼저 설치 (PyPI의 Windows용 torch는 CPU 전용)
+uv pip install torch --index-url https://download.pytorch.org/whl/cu128
+
+# 나머지는 필요할 때: uv pip install <패키지>
+
+Copy-Item .env.example .env                # 키는 .env 에만
+```
+
+- `Activate.ps1`이 "스크립트를 실행할 수 없습니다"로 막히면 한 번만 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 실행한다(현재 사용자에게만 적용).
+- PyTorch 설치 명령은 [공식 선택기](https://pytorch.org/get-started/locally/)에서 최신 값을 확인한다.
+- GPU 확인: `python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"`
+- 로컬 LLM: Ollama 설치(`irm https://ollama.com/install.ps1 | iex`) 후 `ollama pull qwen2.5:1.5b`, `ollama run qwen2.5:1.5b`로 확인.
+
+## 8. 결정 이력
+
+| 날짜 | 결정 |
+|---|---|
+| 2026-11-09 | 새 저장소 `ai-engineering-lab`에서 시작. 참고 저장소 `graphRAG_learning`은 읽기 전용 참고용(코드 복사 금지, 링크만) |
+| 2026-11-09 | LLM은 Claude API, 임베딩은 OpenAI API 기본. 로컬 모델도 쓸 수 있게 공급자 분리 |
+| 2026-11-09 | 서비스 설계 중심: 개념은 깊게, 구현은 얕게. LLM 사전학습 제외 |
+| 2026-11-16 | 정해진 실습(starter·solution·tests) 방식 폐지 → 만들고 싶은 것을 골라 직접 구현 |
+| 2026-11-16 | 저장소 정리: 이 기획서와 필수 설정(`.gitignore`, `.env.example`, `CLAUDE.md`, `README.md`)만 남김. 이전 자료는 `aa46d2f`(실습 코드), `26f20bd`(개념 README) |

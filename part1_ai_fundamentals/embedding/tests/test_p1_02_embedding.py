@@ -172,3 +172,103 @@ def test_run_demo_runs(impl, capsys):
         sys.argv = argv
     out = capsys.readouterr().out
     assert "#07 손실 값이 줄지 않으면" in out and "2회차 추가 0개" in out
+
+
+# --- (제공 코드) 공급자 고르기: EMBEDDING_PROVIDER ---------------------------------
+# 모두 가짜 객체: 모델 다운로드·Ollama 서버·API 키 불필요. starter 에서도 통과해야 한다(제공 코드).
+class FakeST:
+    """sentence_transformers.SentenceTransformer 흉내. 받은 인자를 기록하고 결정적인 2차원 벡터를 돌려준다."""
+
+    def __init__(self, name, device=None):
+        self.name, self.device, self.calls = name, device, []
+
+    def encode(self, sentences, batch_size=32, normalize_embeddings=False, convert_to_numpy=True):
+        self.calls.append({"sentences": list(sentences), "batch_size": batch_size,
+                           "normalize": normalize_embeddings, "numpy": convert_to_numpy})
+        return np.array([[float(len(s)), 1.0] for s in sentences], dtype=np.float32)
+
+
+def st_factory(created):
+    def make(name, device=None):
+        created.append(FakeST(name, device))
+        return created[-1]
+    return make
+
+
+def test_embedding_prefix_rules(impl):
+    assert impl.embedding_prefix("intfloat/multilingual-e5-small", "query") == "query: "
+    assert impl.embedding_prefix("intfloat/multilingual-e5-small", "passage") == "passage: "
+    assert impl.embedding_prefix("BAAI/bge-m3", "query") == ""
+    with pytest.raises(ValueError):
+        impl.embedding_prefix("BAAI/bge-m3", "doc")
+
+
+def test_sentence_transformer_embed_fn_prefix_normalize_and_reuse(impl):
+    impl._ST_MODELS.clear()
+    created = []
+    q = impl.make_embed_fn("sentence_transformers", role="query", env={}, st_factory=st_factory(created))
+    d = impl.make_embed_fn("sentence_transformers", role="passage", env={}, st_factory=st_factory(created))
+    assert len(created) == 1 and created[0].name == "intfloat/multilingual-e5-small" and created[0].device is None   # 기본 모델, 장치 자동
+    assert q(["연차는?"]) == [[float(len("query: 연차는?")), 1.0]]                      # 파이썬 float 목록
+    d(["연차는 3일 전"])
+    calls = created[0].calls
+    assert calls[0]["sentences"] == ["query: 연차는?"] and calls[1]["sentences"] == ["passage: 연차는 3일 전"]
+    assert all(c["normalize"] is True and c["numpy"] is True for c in calls)          # 정규화 여부를 명시
+    impl._ST_MODELS.clear()
+
+
+def test_sentence_transformer_bge_no_prefix_and_text_search(impl):
+    impl._ST_MODELS.clear()
+    created = []
+    fn = impl.make_embed_fn("sentence_transformers", env={"EMBEDDING_MODEL": "BAAI/bge-m3"}, st_factory=st_factory(created))
+    vecs = impl.embed_texts(["가", "나다"], fn, batch_size=1)                           # TODO 3 과 그대로 연결(solution 에서만 계산)
+    assert created[0].name == "BAAI/bge-m3" and created[0].calls[0]["sentences"] == ["가"]
+    assert vecs.shape == (2, 2)
+    impl._ST_MODELS.clear()
+
+
+def test_ollama_embed_fn_request_and_response(impl):
+    sent = []
+
+    def post(url, payload):
+        sent.append((url, payload))
+        return {"model": payload["model"], "embeddings": [[0.6, 0.8] for _ in payload["input"]], "prompt_eval_count": 3}
+
+    env = {"EMBEDDING_PROVIDER": "ollama", "EMBEDDING_MODEL": "my-embed-model", "OLLAMA_BASE_URL": "http://127.0.0.1:9999/"}
+    fn = impl.make_embed_fn(env=env, ollama_post=post)
+    assert fn(["a", "b"]) == [[0.6, 0.8], [0.6, 0.8]]
+    assert sent == [("http://127.0.0.1:9999/api/embed", {"model": "my-embed-model", "input": ["a", "b"]})]   # 공식 형식: model + input 목록
+    fn_e5 = impl.make_ollama_embed_fn("some-e5-tag", post=post, role="query")
+    fn_e5(["q"])
+    assert sent[-1] == ("http://localhost:11434/api/embed", {"model": "some-e5-tag", "input": ["query: q"]})   # 기본 주소, 접두어
+    q = impl.make_embed_fn("ollama", role="query", env={"EMBEDDING_MODEL": "x-e5-y"}, ollama_post=post)
+    q(["질문"])
+    assert sent[-1][1]["input"] == ["query: 질문"]                                      # make_embed_fn 의 role 이 Ollama 까지 전달
+    bad = impl.make_ollama_embed_fn("m", post=lambda url, payload: {"error": "model not found"})
+    with pytest.raises(ValueError, match="model not found"):
+        bad(["x"])
+
+
+def test_make_embed_fn_selection_and_guards(impl):
+    assert impl.make_embed_fn(env={}) is impl.fake_embed                                # 기본 = fake
+    assert impl.make_embed_fn(env={"EMBEDDING_PROVIDER": " Fake "}) is impl.fake_embed
+    with pytest.raises(ValueError):
+        impl.make_embed_fn("huggingface", env={})
+    with pytest.raises(ValueError):
+        impl.make_embed_fn("fake", role="doc", env={})
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        impl.make_embed_fn("openai", env={})
+    with pytest.raises(ValueError, match="OpenAI 모델"):                                 # .env 의 OpenAI 모델 이름이 남아 있음
+        impl.make_embed_fn("sentence_transformers", env={"EMBEDDING_MODEL": "text-embedding-3-small"}, st_factory=st_factory([]))
+    with pytest.raises(ValueError, match="EMBEDDING_MODEL"):                             # ollama 는 태그를 직접 정해야 함
+        impl.make_embed_fn("ollama", env={}, ollama_post=lambda u, p: {})
+
+
+def test_make_embed_fn_openai_with_fake_client(impl):
+    def create(model, input):
+        return SimpleNamespace(data=[SimpleNamespace(index=i, embedding=[1.0, float(i)]) for i in range(len(input))],
+                               usage=SimpleNamespace(prompt_tokens=5))
+
+    client = SimpleNamespace(embeddings=SimpleNamespace(create=create))
+    fn = impl.make_embed_fn("openai", env={"OPENAI_API_KEY": "test"}, openai_factory=lambda: client)
+    assert fn(["a", "b"]) == [[1.0, 0.0], [1.0, 1.0]]

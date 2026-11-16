@@ -6,7 +6,9 @@
 임베딩 함수(embed_fn)는 "문자열 목록 → 벡터 목록" 함수를 바깥에서 넣어 준다(주입).
 - 기본 서비스 경로: OpenAI 임베딩 API (make_openai_embed_fn, 모델은 환경 변수 EMBEDDING_MODEL, 기본 text-embedding-3-small)
 - 테스트·키 없는 환경: fake_embed (결정적인 가짜 임베딩, API 호출 없음)
-같은 코드가 두 경로 모두에서 동작하는 것이 "주입"의 목적이다.
+- 로컬(키 없이): sentence-transformers(multilingual-e5-small·bge-m3) 또는 Ollama 서버 /api/embed
+  → make_embed_fn() 이 EMBEDDING_PROVIDER(fake | openai | sentence_transformers | ollama)로 고른다(제공 코드).
+같은 코드가 모든 경로에서 동작하는 것이 "주입"의 목적이다.
 
 진행 확인: python part1_ai_fundamentals/embedding/solution.py
 원리(임베딩 층·위치 임베딩 직접 구현)는 선택 과제: part1_ai_fundamentals/embedding/advanced/
@@ -65,6 +67,150 @@ def make_openai_embed_fn(client, model: str = DEFAULT_EMBEDDING_MODEL, usage: di
 
     return embed
 
+
+# ---------------------------------------------------------------------------
+# (제공) 공급자 고르기 — EMBEDDING_PROVIDER: fake | openai | sentence_transformers | ollama
+# ---------------------------------------------------------------------------
+# 개념: 아래 함수들은 모두 같은 모양(EmbedFn: 문자열 목록 → 벡터 목록)을 돌려준다. 그래서 TODO 3~5 의 코드는
+#       공급자가 바뀌어도 한 줄도 바뀌지 않는다(P2-01B 의 LLM_PROVIDER 와 같은 설계).
+# 개념(임베딩 전용 모델): 채팅용 LLM(Qwen·Llama 등)은 "다음 토큰 맞히기"로 학습되어, 문장 하나를 벡터 하나로 요약하는 법을
+#       배우지 않았다. 그 은닉 상태를 평균 내 쓰면 검색 품질이 나쁘다. 검색에는 "비슷한 문장은 가깝게, 다른 문장은 멀게"를
+#       목표로 학습한 임베딩 전용 모델(e5·bge·OpenAI text-embedding 등)을 쓴다.
+# 규칙 1(같은 모델): 문서와 질문은 반드시 같은 모델로 임베딩한다. 모델이 다르면 벡터 공간이 달라 비교 자체가 의미 없다.
+# 규칙 2(재임베딩): 모델을 바꾸면 저장된 문서 벡터를 전부 다시 만든다(차원이 같아도 공간이 다르다).
+# 규칙 3(차원·정규화): 모델마다 차원이 다르다(DB 칸 크기가 바뀜). 정규화 여부도 다르다 — 이 실습은 cosine_similarity 가
+#       항상 다시 정규화하므로 어느 쪽이든 결과가 같지만, 벡터 DB 에 내적(inner product)으로 저장할 때는 정규화를 명시한다.
+# 서비스 관점: API(openai) = 키·호출 비용·네트워크 지연·데이터가 외부로 나감 / 로컬(sentence_transformers·ollama) = 비용 0·
+#       데이터가 PC 밖으로 안 나감(프라이버시)·대신 GPU/CPU 성능이 지연을 정함. 한국어 품질은 모델마다 다르므로 "내 데이터로" 확인한다.
+
+PROVIDERS = ("fake", "openai", "sentence_transformers", "ollama")
+DEFAULT_LOCAL_EMBEDDING_MODEL = "intfloat/multilingual-e5-small"   # sentence_transformers 기본(다국어·소형). 다른 예: BAAI/bge-m3
+DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"                  # P2-01B 와 같은 변수 OLLAMA_BASE_URL 로 바꾼다
+ROLES = ("query", "passage")
+
+
+def embedding_prefix(model: str, role: str) -> str:
+    """모델이 요구하는 입력 접두어. e5 계열 → "query: " / "passage: ", 그 밖(bge-m3 등) → "".
+
+    개념: e5 는 질문과 문서에 서로 다른 접두어를 붙여 학습했다. 붙이지 않으면 학습 때와 입력 모양이 달라 검색 품질이 떨어진다.
+          예) 질문 "query: 연차는 며칠 전까지?",  문서 "passage: 연차는 3일 전까지 신청한다."
+    근거: bge-m3 는 공식 FlagEmbedding README 모델표의 "query instruction for retrieval" 칸이 비어 있다(2026-11-16 확인).
+          e5 의 "query: "/"passage: " 규칙은 Hugging Face 모델 카드(intfloat/multilingual-e5-small)에 적혀 있다
+          — 작성 환경에서 huggingface.co 접속 불가 → 미확인. 쓰기 전에 모델 카드에서 확인하자.
+    """
+    if role not in ROLES:
+        raise ValueError(f"role must be one of {ROLES}")
+    return f"{role}: " if "e5" in model.lower() else ""
+
+
+_ST_MODELS: dict[tuple[str, str | None], object] = {}   # (모델, 장치) → 불러온 모델. 질문용·문서용이 같은 모델을 공유한다
+
+
+def make_sentence_transformer_embed_fn(model: str = DEFAULT_LOCAL_EMBEDDING_MODEL, role: str = "passage", normalize: bool = True,
+                                       device: str | None = None, factory: Callable | None = None, batch_size: int = 32) -> EmbedFn:
+    """로컬 sentence-transformers 모델을 EmbedFn 으로. 접두어(embedding_prefix)를 붙이고 normalize 여부를 명시한다.
+
+    device=None 이면 라이브러리가 GPU 를 쓸 수 있는지 스스로 확인해 고른다(sentence-transformers 6.3.0 docstring 확인).
+    factory: 모델을 만드는 함수(기본 sentence_transformers.SentenceTransformer). 테스트에서는 가짜를 넣는다(다운로드 없음).
+    REF: sentence-transformers 6.3.0 `SentenceTransformer(model_name_or_path, device=None)`,
+         `encode(sentences, batch_size=..., normalize_embeddings=..., convert_to_numpy=True)` — 패키지 소스로 확인(2026-11-16)
+    """
+    prefix = embedding_prefix(model, role)
+    if factory is None:
+        # 선택 의존성: 이 공급자를 쓸 때만 필요(requirements/part1.txt 주석 참고)
+        from sentence_transformers import SentenceTransformer
+
+        factory = SentenceTransformer
+    key = (model, device)
+    if key not in _ST_MODELS:
+        _ST_MODELS[key] = factory(model, device=device)   # 처음 한 번만 불러온다(수백 MB 다운로드·메모리 적재)
+    st_model = _ST_MODELS[key]
+
+    def embed(texts: list[str]) -> list[list[float]]:
+        vecs = st_model.encode([prefix + t for t in texts], batch_size=batch_size,
+                               normalize_embeddings=normalize, convert_to_numpy=True)
+        return [list(map(float, v)) for v in vecs]
+
+    return embed
+
+
+def post_json(url: str, payload: dict, timeout: float = 60.0) -> dict:
+    """(제공) JSON 을 POST 하고 JSON 응답을 돌려준다(표준 라이브러리 urllib). 연결 실패는 ConnectionError 로 안내."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # localhost 의 사용자 서버
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.URLError as e:
+        raise ConnectionError(f"Ollama 서버에 연결할 수 없습니다({url}). `ollama serve` 가 켜져 있는지 확인하세요: {e}") from e
+
+
+def make_ollama_embed_fn(model: str, base_url: str = DEFAULT_OLLAMA_BASE_URL, post: Callable[[str, dict], dict] = post_json,
+                         role: str = "passage") -> EmbedFn:
+    """로컬 Ollama 서버의 POST /api/embed 를 EmbedFn 으로. 응답의 "embeddings" 목록을 그대로 돌려준다.
+
+    REF: Ollama 공식 문서 github.com/ollama/ollama docs/api.md "Generate Embeddings", docs/capabilities/embeddings.mdx (2026-11-16 확인)
+         요청 {"model": ..., "input": [문장, ...]} → 응답 {"model": ..., "embeddings": [[...], ...], ...}.
+         /api/embed 는 L2 정규화된(길이 1) 벡터를 돌려준다. 예전 /api/embeddings(단수 prompt)는 /api/embed 로 대체됨.
+    모델 태그는 ollama.com 라이브러리의 embedding 모델에서 고르고 `ollama pull <태그>` 로 받는다(이 저장소는 태그를 정하지 않는다).
+    post: (url, payload) → 응답 JSON. 테스트에서는 가짜 함수를 넣는다(서버 불필요).
+    접두어 규칙은 공급자와 무관하게 모델을 따른다(e5 계열 태그면 "query: "/"passage: ").
+    """
+    url = base_url.rstrip("/") + "/api/embed"
+    prefix = embedding_prefix(model, role)
+
+    def embed(texts: list[str]) -> list[list[float]]:
+        body = post(url, {"model": model, "input": [prefix + t for t in texts]})
+        if "embeddings" not in body:
+            raise ValueError(f"Ollama 응답에 embeddings 가 없습니다: {body.get('error', body)}")
+        return body["embeddings"]
+
+    return embed
+
+
+def make_embed_fn(provider: str | None = None, role: str = "passage", env: dict | None = None, openai_factory: Callable | None = None,
+                  st_factory: Callable | None = None, ollama_post: Callable | None = None) -> EmbedFn:
+    """환경 변수로 공급자를 골라 EmbedFn 을 만든다. provider 를 주지 않으면 env["EMBEDDING_PROVIDER"](기본 "fake").
+
+    - fake                  → fake_embed (키·다운로드·서버 불필요)
+    - openai                → OPENAI_API_KEY 필요. 모델 EMBEDDING_MODEL(기본 text-embedding-3-small)
+    - sentence_transformers → 로컬. 모델 EMBEDDING_MODEL(기본 intfloat/multilingual-e5-small), role 에 맞는 접두어
+    - ollama                → 로컬 서버. 모델 EMBEDDING_MODEL 필수(태그는 직접 확인), 주소 OLLAMA_BASE_URL
+    role: "query"(질문) / "passage"(문서). e5 처럼 둘을 구분하는 모델에서만 결과가 달라진다.
+    로컬 공급자에 OpenAI 모델 이름(text-embedding-...)이 남아 있으면 ValueError(.env 를 함께 바꾸라는 안내).
+    """
+    import os
+
+    env = dict(os.environ) if env is None else env
+    name = (provider or env.get("EMBEDDING_PROVIDER") or "fake").strip().lower()
+    if name not in PROVIDERS:
+        raise ValueError(f"EMBEDDING_PROVIDER must be one of {PROVIDERS}, got {name!r}")
+    if role not in ROLES:
+        raise ValueError(f"role must be one of {ROLES}")
+    model = env.get("EMBEDDING_MODEL", "").strip()
+    if name == "fake":
+        return fake_embed
+    if name == "openai":
+        if not env.get("OPENAI_API_KEY"):
+            raise ValueError("EMBEDDING_PROVIDER=openai 에는 OPENAI_API_KEY 가 필요합니다(.env 에 입력, 커밋 금지).")
+        if openai_factory is None:
+            import openai  # 선택 의존성
+
+            def openai_factory():
+                return openai.OpenAI(timeout=30.0, max_retries=2)
+        return make_openai_embed_fn(openai_factory(), model=model or DEFAULT_EMBEDDING_MODEL)
+    if model.startswith("text-embedding-"):
+        raise ValueError(f"EMBEDDING_MODEL={model!r} 은 OpenAI 모델입니다. {name} 공급자에 맞는 모델 이름으로 .env 를 바꾸세요.")
+    if name == "sentence_transformers":
+        return make_sentence_transformer_embed_fn(model or DEFAULT_LOCAL_EMBEDDING_MODEL, role=role, factory=st_factory)
+    if not model:
+        raise ValueError("EMBEDDING_PROVIDER=ollama 에는 EMBEDDING_MODEL(Ollama 임베딩 모델 태그)이 필요합니다. "
+                         "ollama.com 라이브러리에서 임베딩 모델을 고르고 `ollama pull <태그>` 후 .env 에 적으세요.")
+    return make_ollama_embed_fn(model, env.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL), post=ollama_post or post_json, role=role)
 
 # ---------------------------------------------------------------------------
 # TODO 1 — L2 정규화
@@ -129,6 +275,8 @@ def embed_texts(texts: Sequence[str], embed_fn: EmbedFn, batch_size: int = 64) -
         vectors.extend(out)
     arr = np.asarray(vectors, dtype=np.float32)  # 벡터 길이가 서로 다르면 여기서 ValueError
     # 개념: 임베딩 = 문장을 고정 길이 숫자 목록(벡터)으로 바꾼 것. 뜻이 비슷한 문장일수록 벡터 방향이 비슷해지도록 학습된 모델이 만든다.
+    # 개념(공급자 교체): embed_fn 은 fake_embed 든 make_embed_fn("sentence_transformers") 든 같은 모양이라 이 함수는 그대로다.
+    #       단, 문서는 role="passage", 질문은 role="query" 로 만든 함수를 쓴다(e5 접두어). 모델은 둘이 같아야 한다.
     # WHY(배치): API 는 요청 한 번에 여러 문장을 받는다. 1 문장씩 1,000 번 부르면 왕복 지연이 1,000 번 쌓이고 호출 한도에도 걸린다.
     # 서비스 관점: 저장 공간 ≈ 문서 수 × 차원 × 4 바이트(float32). 예) 문서 100만 개 × 1,536 차원이면 약 6.1 GB.
     #             임베딩 모델을 바꾸면 벡터 공간 자체가 달라져 기존 벡터와 비교할 수 없다 → 문서 전체를 다시 임베딩(재색인)해야 한다.

@@ -13,6 +13,7 @@
 | 방향 전환 2단계: Part 1 심화 → `advanced/` | f655119 | (3단계와 함께 검증) | 24개 파일 git mv, 테스트명 `*_advanced.py` |
 | P1-01 Tokenizer (메인) | 16ecd91 → a8d675d → c9f495a | PASS_WITH_NOTES ×2 → 반영 후 재검증 요청, 이후 다음 실습 진행 | 청크 무한 반복 가드는 호출 횟수 방식(스레드 금지) |
 | P1-02 Embedding (메인) | e4b03e6 | PASS (사소 2건은 a8ef12d 에 반영) | |
+| P1-02 로컬 임베딩 옵션(EMBEDDING_PROVIDER) | (A 커밋) | ③ 검증 요청 예정 | ① 지시(사용자 결정): 로컬 LLM 먼저·임베딩도 키 없이. P2-01B 의 LLM_PROVIDER 와 같은 설계 |
 | P1-03 Word2Vec (메인, 짧게) | a8ef12d | PASS (사소 1건은 7204c31 에 반영) | |
 | P1-05 Transformer (메인) | 7204c31 → 093a0fa | PASS_WITH_NOTES → 반영 후 재검증 요청, 이후 다음 실습 진행 | Part 1 메인 5개 완료 |
 | P2-01 다음 토큰 예측·샘플링 | e401983 → f87c91a | PASS_WITH_NOTES → 반영 | `part2_llm/conftest.py`, pytest.ini 에 part2_llm 추가 |
@@ -28,7 +29,7 @@
 ## 2. 실습별 핵심 메모 (다시 손댈 때 필요한 것)
 
 - **P1-01** `part1_ai_fundamentals/tokenizer/`: 로컬 바이트 BPE(vocab 500). 청크는 offsets 로 원문 자르기, 제공 함수 `is_char_boundary`·`snap_chunk_end`·`snap_next_start`. 사용자가 starter 진행 중(60349ae) — **사용자 파일 수정 금지**.
-- **P1-02** `embedding/`: numpy, `embed_fn` 주입, `fake_embed`(글자 2-gram md5 256차원), OpenAI 실제 호출은 `embed_with_openai.py`(사용자 PC).
+- **P1-02** `embedding/`: numpy, `embed_fn` 주입, `fake_embed`(글자 2-gram md5 256차원), OpenAI 실제 호출은 `embed_with_openai.py`(사용자 PC). **로컬 임베딩 옵션**: 제공 코드 `make_embed_fn(provider, role, env, ...)`(fake·openai·sentence_transformers·ollama, 기본 `EMBEDDING_PROVIDER`=fake), `embedding_prefix`(모델명에 e5 → `query: `/`passage: `, 그 밖 없음), `make_sentence_transformer_embed_fn`(모델 캐시 `_ST_MODELS`, `normalize_embeddings` 명시, 장치 자동), `make_ollama_embed_fn`(`POST {OLLAMA_BASE_URL}/api/embed` `{model, input}` → `embeddings`, 공식 docs/api.md·capabilities/embeddings.mdx 2026-11-16 확인, 모델 태그는 정하지 않음), `post_json`. 로컬 공급자에 `text-embedding-*` 모델명이 남으면 ValueError. TODO 는 5개 그대로(공급자는 제공 코드). 사용자 PC 용 `embed_with_provider.py`(--provider, role 별 함수 두 개). 테스트는 가짜 SentenceTransformer·가짜 post(다운로드·서버 없음), 변이 9종 포착. **e5 접두어는 HF 모델 카드 접속 불가로 미확인**(README 에 표기).
 - **P1-03** `word2vec/`: gensim 4.4.0, 상대 비교 테스트(cat–dog > cat–coffee), 데모 [5]는 P1-02 `fake_embed` 를 경로로 로드.
 - **P1-05** `transformer/`: 마스크 규약 True=볼 수 있음(SDPA bool 과 같음, `key_padding_mask` 는 반대). 한 행 전부 가리면 직접 계산 NaN / torch 2.15 SDPA 는 0. KV 캐시는 미리 할당한 버퍼.
 - **P2-01** `part2_llm/next_token_prediction/`: 단어 `BigramLM`(alpha 0.001), 필터 순서 T → top-k → top-p(테스트로 고정), Qwen 실제 실행은 `run_qwen.py`.
@@ -47,7 +48,7 @@
 **기타 보류**
 - Part 0 문서: REPOSITORY_ANALYSIS 의 실제 경로, 실험 디렉터리 이름 통일.
 - P2-01B `ClaudeClient`(최소 어댑터)는 408·409 를 `ProviderError` 로 매핑하지 않음 — Part 6 에서 P2-02 요청 빌더·`classify_error` 와 통일.
-- 사용자 PC 측정이 비어 있는 실행 기록: P1-01 선택 스크립트, P1-02 OpenAI, P2-01 Qwen, P2-01B Ollama·VRAM, P2-02 실제 호출(모두 "측정 필요" 칸).
+- 사용자 PC 측정이 비어 있는 실행 기록: P1-01 선택 스크립트, P1-02 OpenAI·로컬 임베딩(`experiments/P1-02-20261116-local-embedding`), P2-01 Qwen, P2-01B Ollama·VRAM, P2-02 실제 호출(모두 "측정 필요" 칸).
 
 ## 4. 다음에 재개할 첫 단계 — P2-04 (사용자 "다음" + ① 지시 후)
 

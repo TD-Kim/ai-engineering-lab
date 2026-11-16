@@ -70,6 +70,7 @@ notepad .env                      # ANTHROPIC_API_KEY=, OPENAI_API_KEY= 채우�
 - **Neo4j:** Docker Desktop의 `neo4j` 이미지 또는 Neo4j Desktop을 쓴다.
   참고 저장소 스크립트가 DB를 지우므로 **이 저장소의 실험은 별도 DB/컨테이너**를 쓴다.
 - **Ollama:** 서비스(Part 6)에서 로컬 LLM 서빙용. 학습(LoRA)은 HF Transformers + PEFT로 한다.
+- **로컬 임베딩(P1-02):** OpenAI 키 없이 `.env`의 `EMBEDDING_PROVIDER`로 고른다. `sentence_transformers`는 `uv pip install sentence-transformers`(선택 의존성, 모델은 처음 실행 때 내려받음, GPU가 있으면 자동 사용)이고, `ollama`는 Python 패키지 없이 로컬 서버의 `/api/embed`를 부른다(임베딩 모델 태그는 `ollama pull`로 받음). 공급자를 바꾸면 `EMBEDDING_MODEL`도 그 공급자의 모델 이름으로 함께 바꾸고, 저장된 문서 벡터는 전부 다시 만든다.
 
 ## 4. 모델 · VRAM · 라이선스
 

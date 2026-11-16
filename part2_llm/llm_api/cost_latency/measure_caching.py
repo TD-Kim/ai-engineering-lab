@@ -61,7 +61,7 @@ def show_batch_results(client, batch_id: str, sent_ids: list[str], model: str) -
         money = f"${m.cache_cost(cu, model, batch=True).actual_usd:.5f}" if model in m.PRICES else "단가표에 없는 모델"
         print(f"  {cid}: {cu.status} 정가 {cu.input_tokens} 쓰기 {cu.cache_write_5m + cu.cache_write_1h} 읽기 {cu.cache_read} "
               f"출력 {cu.output_tokens} → 배치 비용 {money}")
-    print(f"  다시 보낼 것 {out.retry}, 고칠 것 {out.fix}, 취소 {out.canceled}, 빠진 것 {out.missing}")
+    print(f"  다시 보낼 것 {out.retry}, 고칠 것 {out.fix}, 취소 {out.canceled}, 빠진 것 {out.missing}, 보내지 않은 id {out.unexpected}")
 
 
 def main() -> None:
@@ -93,7 +93,8 @@ def main() -> None:
             m.build_cached_request(f"현재 시각 {datetime.now().isoformat(timespec='seconds')}. " + INSTRUCTIONS, [POLICY],
                                    QUESTIONS[2], **kwargs)]
     try:
-        n_in = client.messages.count_tokens(model=model, system=reqs[0]["system"], messages=reqs[0]["messages"]).input_tokens
+        n_in = client.messages.count_tokens(model=model, system=reqs[0]["system"], messages=reqs[0]["messages"],
+                                            output_config=reqs[0]["output_config"]).input_tokens   # P2-02 estimate_cost 와 같게
         print(f"[추정] 요청 1 입력 {n_in} 토큰 (캐시 최소 길이 {m.MIN_CACHEABLE_TOKENS} 토큰 — 미달이면 캐시가 조용히 안 된다)")
         labels = ["1) 첫 요청", "2) 질문만 다름", "3) 시스템에 현재 시각"]
         for label, req in zip(labels, reqs, strict=True):

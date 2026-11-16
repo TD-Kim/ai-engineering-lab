@@ -19,11 +19,11 @@
 | P2-01B 로컬 LLM 서빙·공급자 교체 | 93dce4d(문서) + 6ac51fd | 검증 완료, 권장(거절 폴백·TTFT 의 thinking)은 P2-02 에서 반영 | 사용자 결정으로 추가된 실습 |
 | P2-02 Claude API 기초 | 1e86636 → d01b39d → c2aded7 | 1e86636 PASS_WITH_NOTES → d01b39d 재검증 **PASS**(권장 4건 반영, 변형 6종 포착, 폴백 설명 스킬 대조 일치) · 후속 c2aded7 **PASS** | c2aded7 = 선택 스크립트 6개 경로 로딩 통일 + 격리 테스트 8개(`tests/test_script_isolation.py`) |
 | CLAUDE.md(학습 도우미 규칙) + ENVIRONMENT §7 | c72bc95 | **PASS** (권장 3건은 P2-03 커밋에 반영) | |
-| P2-03 비용·지연(캐싱·배치·사용량 집계) | (P2-03 커밋) | ③ 검증 요청 예정 | 보류 메모 1~4(CLAUDE.md thinking disabled, ENVIRONMENT §7 순서·§2 실행 정책, ARCHITECTURE §3 `_load_sibling`·pytest.ini)도 같은 커밋 |
+| P2-03 비용·지연(캐싱·배치·사용량 집계) | d1d6fbd → (검증 반영 커밋) | d1d6fbd PASS_WITH_NOTES → 권장 6건 반영, 재검증 요청 | 보류 메모 1~4(CLAUDE.md thinking disabled, ENVIRONMENT §7 순서·§2 실행 정책, ARCHITECTURE §3 `_load_sibling`·pytest.ini)도 같은 커밋 |
 
 모든 PROGRESS 상태는 `NOT_STARTED`(작성된 실습은 메모 "실습 자료 작성 완료, 학습자 확인 전"). `COMPLETED`는 사용자만.
 
-마지막 확인 수치(P2-03 커밋): 루트 `pytest` 212 passed, 1 skipped(P1-02A sentence-transformers 미설치; P2-03 27개 + 격리 테스트 1개 추가) · `ruff check . --exclude part1_ai_fundamentals/pytorch/starter.py` 통과 · 상대 링크 0 깨짐.
+마지막 확인 수치(P2-03 커밋): 루트 `pytest` 214 passed, 1 skipped(P1-02A sentence-transformers 미설치; P2-03 29개 + 격리 테스트 1개 추가) · `ruff check . --exclude part1_ai_fundamentals/pytorch/starter.py` 통과 · 상대 링크 0 깨짐.
 
 ## 2. 실습별 핵심 메모 (다시 손댈 때 필요한 것)
 
@@ -33,7 +33,7 @@
 - **P1-05** `transformer/`: 마스크 규약 True=볼 수 있음(SDPA bool 과 같음, `key_padding_mask` 는 반대). 한 행 전부 가리면 직접 계산 NaN / torch 2.15 SDPA 는 0. KV 캐시는 미리 할당한 버퍼.
 - **P2-01** `part2_llm/next_token_prediction/`: 단어 `BigramLM`(alpha 0.001), 필터 순서 T → top-k → top-p(테스트로 고정), Qwen 실제 실행은 `run_qwen.py`.
 - **P2-01B** `part2_llm/local_llm_serving/`: 공통 인터페이스 `generate(prompt) -> (text, Usage)`, Fake/Ollama/Claude, 폴백은 `ProviderError`만, 클라이언트 주소 변수 `OLLAMA_BASE_URL`(서버용 `OLLAMA_HOST` 와 구분). GPU 측정은 `measure_local_models.py`(사용자 PC).
-- **P2-03** `part2_llm/llm_api/cost_latency/`: P2-02 solution 을 `_load_p2_02()`(이름 `p2_02_llm_api_basics_for_p2_03`)로 불러 `build_request`·`read_response`·`Usage`·`USAGE_FIELDS` 재사용. system = [지시문, 문서들], 마지막 system 블록에만 `cache_control`. 단가표 `PRICES`(입력·5m 쓰기·1h 쓰기·읽기·출력, 공식 가격 페이지 2026-11-16 확인: opus 5.5 = 4/5/8/0.20/20). 최소 캐시 길이 512(공식 문서). `first_divergence`는 `render_segments`(model→tools→system→messages, cache_control 제거, dict 키 순서 유지)로 비교. 배치는 `fallbacks=False`, errored 원인은 `result.error.error.type`(SDK 타입 확인, 스킬 예시와 다름). 로그는 `log_cached_usage`(P2-01B 열 + cache_write_5m·1h·read·batch), `summarize_usage_log`는 P2-01B 형식도 읽음. 실제 측정 `measure_caching.py`(3회 호출, `--batch`/`--batch-id`). 스크래치 변이 19종 모두 포착.
+- **P2-03** `part2_llm/llm_api/cost_latency/`: P2-02 solution 을 `_load_p2_02()`(이름 `p2_02_llm_api_basics_for_p2_03`)로 불러 `build_request`·`read_response`·`Usage`·`USAGE_FIELDS` 재사용. system = [지시문, 문서들], 마지막 system 블록에만 `cache_control`. 단가표 `PRICES`(입력·5m 쓰기·1h 쓰기·읽기·출력, 공식 가격 페이지 2026-11-16 확인: opus 5.5 = 4/5/8/0.20/20). 최소 캐시 길이 512(공식 문서). `first_divergence`는 `render_segments`(model→tools→system→messages, cache_control 제거, dict 키 순서 유지)로 비교. 배치는 `fallbacks=False`, errored 원인은 `result.error.error.type`(SDK 타입 확인, 스킬 예시와 다름). 로그는 `log_cached_usage`(P2-01B 열 + cache_write_5m·1h·read·batch), `summarize_usage_log`는 P2-01B 형식도 읽음. 실제 측정 `measure_caching.py`(3회 호출, `--batch`/`--batch-id`). 스크래치 변이 23종 모두 포착. 검증 반영: custom_id 는 `fullmatch`(끝 줄바꿈 거부), `collect_batch_results.unexpected`(보내지 않은 id), 내용+effort 동시 변경 시 settings_changed 테스트, measure 의 count_tokens 에 output_config.
 - **P2-02** `part2_llm/llm_api/basics/`: `client.beta.messages.create/stream(**req)`, req = model·max_tokens 16000·messages·output_config{effort medium}·system·betas[`server-side-fallback-2026-07-01`]·fallbacks `"default"`. 응답은 stop_reason 먼저 → text 블록만 → 검증 → 폴백 여부. `messages.parse` 대신 `output_config.format` + `anthropic.transform_schema`. 실제 호출 `call_claude.py`(유료). P2-01B 의 `Usage`·`ProviderError`·`log_usage` 를 경로로 로드해 재사용.
 
 ## 3. 보류·남은 작업

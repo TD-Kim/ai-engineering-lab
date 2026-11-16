@@ -154,6 +154,9 @@ def test_first_divergence_settings_changed(impl):
     b = _req("규칙", output_config={"effort": "high"})
     d = impl.first_divergence(a, b)
     assert d.location is None and d.settings_changed == ["output_config"]           # 본문은 같아도 effort 변경을 알린다
+    c = _req("규칙 v2", output_config={"effort": "high"})                           # 본문과 effort 를 함께 바꿈
+    d = impl.first_divergence(a, c)
+    assert d.location == "system[0]" and d.settings_changed == ["output_config"]     # 일찍 반환하는 분기에서도 알린다
 
 
 # --- TODO 4 ---------------------------------------------------------------
@@ -165,7 +168,7 @@ def test_build_batch_shape(impl):
     assert p["max_tokens"] == 1000                                                  # 원래 요청을 공유하지 않음(복사)
 
 
-@pytest.mark.parametrize("cid", ["", "a b", "한글", "x" * 65, "a/b", 7])
+@pytest.mark.parametrize("cid", ["", "a b", "한글", "x" * 65, "a/b", 7, "abc\n", "a" * 64 + "\n"])   # 끝 줄바꿈도 거부
 def test_build_batch_rejects_bad_ids(impl, cid):
     with pytest.raises(ValueError):
         impl.build_batch([(cid, {"model": "m", "max_tokens": 1})])
@@ -192,11 +195,14 @@ def test_collect_batch_results_by_custom_id(impl):
         NS(custom_id="a", result=NS(type="succeeded", message=text_message("A 답"))),
         NS(custom_id="e", result=NS(type="expired")),
         NS(custom_id="g", result=NS(type="canceled")),
+        NS(custom_id="zz", result=NS(type="succeeded", message=text_message("엉뚱한 답"))),   # 보내지 않은 id
+        NS(custom_id="yy", result=err("api_error")),
     ]
     out = impl.collect_batch_results(results, ["a", "b", "c", "d", "e", "f", "g"])
     assert out.texts == {"a": "A 답", "b": "B 답"}                                   # text 블록만, custom_id 로 매칭
-    assert out.usages["b"].output_tokens == 4
+    assert out.usages["b"].output_tokens == 4 and "zz" not in out.usages
     assert (out.retry, out.fix, out.canceled, out.missing) == (["c", "e"], ["d"], ["g"], ["f"])
+    assert out.unexpected == ["yy", "zz"]                                             # 조용히 받지 않고 따로 알린다
 
 
 def test_wait_for_batch_bounded(impl):

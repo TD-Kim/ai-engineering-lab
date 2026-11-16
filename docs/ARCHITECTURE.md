@@ -129,7 +129,7 @@ flowchart LR
   ```
 
 - `starter.py`는 단독 실행(`python <실습>/starter.py`)하면 `[미구현] TODO n` 목록을 출력한다.
-- 선택 스크립트(`run_demo.py`·실제 호출·측정 스크립트)는 같은 폴더의 `solution.py` 등을 `_load_sibling(filename)`으로 불러온다. 모듈 이름은 `lab_<상위 폴더>_<실습 폴더>_<파일 stem>`, `sys.path`는 수정하지 않고 `from solution import`는 쓰지 않는다([tests/test_script_isolation.py](../tests/test_script_isolation.py)가 검사).
+- **새로 만드는** 선택 스크립트(`run_demo.py`·실제 호출·측정 스크립트)는 같은 폴더의 `solution.py` 등을 `_load_sibling(filename)` 경로 로딩으로 불러온다. 모듈 이름은 `lab_<상위 폴더>_<실습 폴더>_<파일 stem>`, `sys.path`는 수정하지 않고 `from solution import`는 쓰지 않는다([tests/test_script_isolation.py](../tests/test_script_isolation.py)가 검사). 예외: 기존 `part1_ai_fundamentals/pytorch/run_demo.py`와 `advanced/` 스크립트는 `main()` 안에서 `sys.path`·`importlib.import_module`을 쓴다(테스트에서 `main()`을 부르지 않음, 바꿀 시점은 HANDOFF §3 보류 6번).
 - 테스트 파일명은 실습별로 고유하게 짓는다: `tests/test_p1_05_transformer.py`, advanced는 `advanced/tests/test_p1_05_transformer_advanced.py`. 여러 실습에 같은 이름(`test_model.py` 등)이 있으면 루트에서 `pytest`를 실행할 때 충돌한다.
 
 ### 테스트 전환 방식 (starter ↔ solution)

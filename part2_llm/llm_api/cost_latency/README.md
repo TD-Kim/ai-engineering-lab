@@ -53,9 +53,10 @@
 | 최소 캐시 길이 | `claude-opus-5-5` 512 토큰 (Opus 4.6 등 4096, Opus 4.8 1024 — 세대마다 오르내린다) | 공식 prompt-caching 문서(2026-11-16 열람). 스킬은 "값을 쓰기 전에 공식 문서 확인"이라고 적어 두어 공식 문서로 확인함 |
 | 캐시 수명 | 기본 5분, 선택 1시간. 읽으면 수명이 다시 시작(무료 갱신). 수명은 요청 **시작**부터 센다 | 스킬 `shared/prompt-caching.md` Choosing the TTL |
 | 단가(claude-opus-5-5) | 입력 $4, 5분 쓰기 $5(1.25×), 1시간 쓰기 $8(2×), 캐시 읽기 $0.20(**0.05×**), 출력 $20 / 100만 토큰 | 공식 [가격 페이지](https://platform.claude.com/docs/en/about-claude/pricing) 2026-11-16 열람. 캐시 배수는 배치 할인과 겹쳐 적용 |
+| Sonnet 5.5 단가 | 입력 $2, 5분 쓰기 $2.50, 1시간 쓰기 $4, 캐시 읽기 **$0.10(0.05×)**, 출력 $10 — `PRICES["claude-sonnet-5-5"]` | 공식 가격 페이지(2026-11-16)를 따른다. 작성 환경의 스킬 `shared/models.md`·`shared/prompt-caching.md`도 $0.10으로 일치(검증 세션은 스킬 모델표의 $0.20 표기를 보고함 — 스킬 판본 차이로 보이며, 어느 쪽이든 이 실습은 공식 가격표를 따른다) |
 | 배치 | `client.messages.batches.create(requests=[{custom_id, params}])` → `retrieve(id).processing_status == "ended"` → `results(id)`. 50% 할인, 최대 100,000 요청·256 MB, 대부분 1시간 안·최대 24시간, 결과 29일 보관 | 스킬 `python/claude-api/batches.md`, 공식 [batch-processing](https://platform.claude.com/docs/en/build-with-claude/batch-processing) |
 | 배치에서 못 쓰는 것 | `stream`·`speed`·`fallbacks`·`max_tokens: 0`. 서버 측 폴백은 배치에 적용되지 않음 → P2-02 `build_request(..., fallbacks=False)` | 스킬 batches.md Key Facts, 공식 batch-processing 문서 표 |
-| `custom_id` 형식 | `^[a-zA-Z0-9_-]{1,64}$` | 공식 batch-processing 문서 |
+| `custom_id` 형식 | `^[a-zA-Z0-9_-]{1,64}$`를 문자열 **전체**에 적용(`fullmatch`). `re.match` + `$`는 끝 줄바꿈 앞에서도 맞아 `"abc\n"`을 통과시킨다 | 공식 batch-processing 문서, Python `re` 동작은 작성 환경에서 실행해 확인 |
 | errored 결과의 원인 | `result.result.error.error.type == "invalid_request_error"`면 요청 수정, 그 밖은 재전송 | 설치된 anthropic 2.6.0 `MessageBatchErroredResult.error: ErrorResponse{type: "error", error: ErrorObject}` + 공식 문서 예시. **스킬 예시의 `result.result.error.type == "invalid_request"`는 SDK 타입과 맞지 않아 쓰지 않음** |
 | effort·thinking 변경 | 바꾸면 messages 캐시가 무효(모델에 따라 그 앞까지) → 경로마다 고정. 기본 effort를 명시하는 것은 생략과 같아 비용 없음 | 스킬 `shared/prompt-caching.md` Invalidation hierarchy |
 | 캐시 범위 | Claude API에서는 workspace별로 분리(조직 간 공유 없음). 모델별로 따로 | 스킬 `shared/prompt-caching.md` API reference |
@@ -162,7 +163,7 @@ python part2_llm/llm_api/cost_latency/measure_caching.py      # 선택, 유료
 ```
 
 - 테스트는 키·네트워크가 필요 없습니다. usage·배치 결과는 가짜 객체, 폴링의 sleep도 가짜 함수입니다. 스레드·대기 반복이 없습니다.
-- `IMPL=starter`에서도 제공 코드만 검사하는 테스트 2개(`wait_for_batch`, 단가·상수 확인)는 통과합니다. 나머지 25개가 TODO 미구현으로 skip입니다.
+- `IMPL=starter`에서도 제공 코드만 검사하는 테스트 2개(`wait_for_batch`, 단가·상수 확인)는 통과합니다. 나머지 27개가 TODO 미구현으로 skip입니다.
 - 데모는 `--log` 경로(기본 `part2_llm/llm_api/cost_latency/outputs/usage_demo.csv`, git 제외)를 매번 새로 씁니다. `measure_caching.py`의 `outputs/usage_real.csv`는 누적됩니다.
 
 ## 7. TODO 목록
@@ -172,7 +173,7 @@ python part2_llm/llm_api/cost_latency/measure_caching.py      # 선택, 유료
 | 1 | `cache_marker`, `build_cached_request` | TTL 표시(5m/1h), system = [지시문, 문서들]의 **마지막 블록에만** `cache_control`, 질문은 messages(P2-02 `build_request` 재사용) |
 | 2 | `read_cache_usage`, `cache_cost` | usage 세 칸 + TTL 구분(`cache_creation`) → `CacheUsage`, 칸별 단가로 실제·캐시 없었다면·절감, 배치 할인 |
 | 3 | `first_divergence` | `render_segments` 두 목록을 앞에서부터 비교 → 첫 차이 위치·글자 위치·공통 길이, 바뀐 설정(effort 등) |
-| 4 | `build_batch`, `collect_batch_results` | `custom_id` 형식·중복·배치 불가 키 검사, 결과를 `custom_id`로 분류(성공·재전송·수정·취소·누락) |
+| 4 | `build_batch`, `collect_batch_results` | `custom_id` 형식(`fullmatch`)·중복·배치 불가 키 검사, 결과를 `custom_id`로 분류(성공·재전송·수정·취소·누락·보내지 않은 id) |
 | 5 | `p95`, `summarize_usage_log` | nearest-rank p95, CSV 집계(토큰·적중률·평균/p95 지연·총비용·stop_reason, P2-01B 형식 로그도 읽기) |
 | 6 (선택) | `choose_levers` | 캐싱(5m/1h/없음)·배치·effort_low·max_tokens_cap 규칙 |
 

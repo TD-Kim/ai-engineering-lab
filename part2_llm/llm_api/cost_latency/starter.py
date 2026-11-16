@@ -54,7 +54,7 @@ USAGE_FIELDS = _p2_02._p2_01b.USAGE_FIELDS     # P2-01B log_usage 의 열(timest
 MAX_BREAKPOINTS = 4                 # 한 요청에 cache_control 은 최대 4개(스킬 shared/prompt-caching.md API reference)
 MIN_CACHEABLE_TOKENS = 512          # claude-opus-5-5 의 최소 캐시 길이(공식 prompt-caching 문서, 2026-11-16 확인). 모델마다 다르다
 BATCH_DISCOUNT = 0.5                # Batches API: 입력·출력 모두 50%
-CUSTOM_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")   # 공식 batch-processing 문서
+CUSTOM_ID_RE = re.compile(r"[a-zA-Z0-9_-]{1,64}")     # 공식 문서 ^[a-zA-Z0-9_-]{1,64}$ — fullmatch 로 검사(아래 WHY)
 BATCH_FORBIDDEN_KEYS = ("stream", "speed", "fallbacks", "betas")
 
 # 단가(USD / 100만 토큰). 공식 가격 페이지에서 확인: 2026-11-16.
@@ -276,7 +276,7 @@ def build_batch(items: Sequence[tuple[str, dict]]) -> list[dict]:
     """
     # TODO 4: items 를 돌며 custom_id 형식(CUSTOM_ID_RE)·중복을 검사하고, 요청에 BATCH_FORBIDDEN_KEYS 중 하나가 있거나
     #         max_tokens 가 0 이면 ValueError. 통과하면 {"custom_id": id, "params": dict(요청)} 을 목록에 담아 돌려주세요.
-    # HINT 1: CUSTOM_ID_RE.match(...) 는 문자열에만 씁니다 — isinstance(custom_id, str) 를 먼저 확인하세요.
+    # HINT 1: 문자열 "전체"가 형식에 맞는지는 CUSTOM_ID_RE.fullmatch(...) 로 봅니다(문자열에만 — isinstance 먼저).
     # HINT 2: 이미 본 id 는 set 에 모아 두면 중복을 바로 알 수 있습니다.
     # REF: claude-api 스킬 python/claude-api/batches.md, https://platform.claude.com/docs/en/build-with-claude/batch-processing
     # 개념: 배치 = 요청 묶음을 한 번에 맡기고 나중에 결과를 받는 비동기 처리. 입력·출력 모두 50% 할인.
@@ -296,6 +296,7 @@ class BatchOutcome:
     fix: list[str]                        # 고쳐야 할 것: invalid_request_error
     canceled: list[str]
     missing: list[str]                    # 보냈는데 결과에 없는 custom_id
+    unexpected: list[str]                 # 보내지 않은 custom_id 의 결과(다른 배치·오타) — 다른 칸에 섞지 않는다
 
 
 def collect_batch_results(results: Iterable, sent_ids: Sequence[str]) -> BatchOutcome:
@@ -303,7 +304,8 @@ def collect_batch_results(results: Iterable, sent_ids: Sequence[str]) -> BatchOu
     # TODO 4 (이어서): 결과마다 r.custom_id 와 r.result.type 으로 나누세요.
     #         succeeded → texts[id] = read_response(r.result.message).text, usages[id] = r.result.message.usage
     #         errored → r.result.error.error.type 이 "invalid_request_error" 면 fix, 아니면 retry / expired → retry / canceled → canceled
-    #         sent_ids 중 결과에 없던 id 는 missing(보낸 순서). retry·fix·canceled 는 정렬해서 BatchOutcome 으로.
+    #         sent_ids 에 없는 id 의 결과는 다른 칸에 넣지 말고 unexpected 로. sent_ids 중 결과에 없던 id 는 missing(보낸 순서).
+    #         retry·fix·canceled·unexpected 는 정렬해서 BatchOutcome 으로.
     # HINT 1: 결과 순서는 보낸 순서와 다릅니다. 위치(인덱스)를 쓰지 말고 custom_id 를 열쇠로 씁니다.
     # HINT 2: 받은 id 를 set 에 모아 두고, 끝난 뒤 sent_ids 를 차례로 보며 그 set 에 없는 것을 고릅니다.
     # REF: 설치된 anthropic 2.6.0 types/messages/message_batch_*_result.py, 공식 batch-processing 문서 "Retrieving batch results"
@@ -313,6 +315,7 @@ def collect_batch_results(results: Iterable, sent_ids: Sequence[str]) -> BatchOu
     # WHY(succeeded 도 stop_reason 확인): 성공 = "메시지가 만들어졌다"일 뿐, 거절·잘림일 수 있다. 여기서는 text 만 모으고
     #       판정은 P2-02 ensure_complete 에 맡긴다(데모에서 사용).
     # WHY(missing): 결과가 빠졌는데 모르고 넘어가면 평가 점수·색인이 조용히 비어 있게 된다. 보낸 목록과 대조한다.
+    # WHY(unexpected): 보내지 않은 id 의 결과(다른 배치 id 로 조회, id 생성 버그)를 조용히 받으면 엉뚱한 답이 섞인다. 따로 모아 알린다.
     raise NotImplementedError("TODO 4")
 
 

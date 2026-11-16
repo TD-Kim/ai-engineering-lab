@@ -1,6 +1,6 @@
 # Part 2 — LLM 활용 원리
 
-> 상태: **P2-01·P2-01B·P2-02 작성됨**, 나머지는 순서대로 작성 예정. 진행 상태는 [PROGRESS](../docs/PROGRESS.md).
+> 상태: **P2-01·P2-01B·P2-02·P2-03 작성됨**, 나머지는 순서대로 작성 예정. 진행 상태는 [PROGRESS](../docs/PROGRESS.md).
 > 테스트 설정: [`conftest.py`](./conftest.py) (Part 1 과 같은 규약: `IMPL=starter`, TODO 미구현 → skip).
 
 > 방향: **개념은 깊게, 구현은 얕게 — 서비스 설계 중심**([PROJECT_PLAN](../docs/PROJECT_PLAN.md)).
@@ -16,7 +16,7 @@
 |---|---|---|---|
 | [next_token_prediction](./next_token_prediction/README.md) | P2-01 | 메인 | W5 |
 | [local_llm_serving](./local_llm_serving/README.md) | P2-01B | 메인 | W5(–6) |
-| [llm_api](./llm_api/README.md) — [basics](./llm_api/basics/README.md)(P2-02) | P2-02, P2-03 | 메인 | W5–6 |
+| [llm_api](./llm_api/README.md) — [basics](./llm_api/basics/README.md)(P2-02), [cost_latency](./llm_api/cost_latency/README.md)(P2-03) | P2-02, P2-03 | 메인 | W5–6 |
 | [finetuning](./finetuning/README.md) | P2-04 | 메인 | W6 |
 | [loss](./loss/README.md) | P2-S1 | 선택 | — |
 | [backpropagation](./backpropagation/README.md) | P2-S1 | 선택 | — |

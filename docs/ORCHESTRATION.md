@@ -66,7 +66,8 @@
 - **권한 분류기**: 하위 세션의 `add_repo`, 세션 간 파일 전송 시도가 거부된 적이 있다(① 보고). 파일은 git(main)으로만 주고받는다.
 - **네트워크(클라우드 세션)**
   - 접속 불가: pytorch.org·download.pytorch.org, huggingface.co, platform.openai.com, numpy.org, radimrehurek.com(gensim), arxiv.org, ollama.com·docs.ollama.com.
-  - `raw.githubusercontent.com`은 됨(Ollama 공식 문서 확인에 사용).
+  - `raw.githubusercontent.com`은 됨(Ollama 공식 문서 확인에 사용). `platform.claude.com/docs/...md`(가격·캐싱·배치)도 됨(2026-11-16).
+  - 접속 불가 추가(2026-11-16): docs.python.org, learn.microsoft.com → 링크는 "미확인" 표기.
   - 확인하지 못한 출처는 "미확인"으로 표기한다.
 - **API 결과 지어내지 않기**
   - 키·GPU·모델이 없으므로 실제 호출·측정은 선택 스크립트(사용자 PC)로 둔다.
@@ -76,6 +77,7 @@
   - `temperature`·`top_p`·`top_k`(API 버전 2026-10-21 에서 400)
   - `budget_tokens`, `thinking: {"type": "disabled"}`(Opus 5.5 400)
   - assistant prefill, 강제 `tool_choice`
+  - 스킬 예시와 SDK 가 다를 때는 설치된 SDK 타입·공식 문서를 따른다. 예: 배치 errored 원인은 `result.result.error.error.type == "invalid_request_error"`(스킬 batches.md 예시의 `error.type == "invalid_request"`는 SDK 타입과 다름)
 - **테스트 설계**
   - 스레드·서버·무한 대기 금지. P1-01 의 스레드 시간 제한 가드가 버려진 스레드로 8.6GB 메모리를 먹은 사례가 있다 → 호출 횟수 가드나 길이 고정 `for` 를 쓴다.
   - 시간 측정 테스트는 결정적인 값(모양·원소 수)만 단언한다.
@@ -88,12 +90,8 @@
 - **사용자 파일**: `part1_ai_fundamentals/pytorch/starter.py`(RUF100 3건, ruff 에서 exclude), `tokenizer/starter.py`(진행 중)는 수정하지 않는다.
 - **pytest 시간**: 보통 12~15초이지만 기계 부하로 60초 이상 걸린 적이 있다(재실행하면 정상).
 
-## 6. 남은 메모 (다음 실습 커밋에 함께)
+## 6. 남은 메모
 
-[HANDOFF §3](HANDOFF.md#3-보류남은-작업)과 같다.
-1. CLAUDE.md §6 에 `thinking: {"type": "disabled"}` 추가
-2. ENVIRONMENT §7 단계 순서
-3. ENVIRONMENT §2 PowerShell 실행 정책 안내
-4. ARCHITECTURE §3 선택 스크립트 규칙 + pytest.ini 예시 정정
-5. (낮음) 격리 테스트 라이브러리별 importorskip 세분화
-6. (낮음) advanced 스크립트 9개는 테스트가 main() 을 부르게 될 때 경로 로딩으로 변경
+[HANDOFF §3](HANDOFF.md#3-보류남은-작업)과 같다. 1~4번(CLAUDE.md thinking disabled, ENVIRONMENT §7·§2, ARCHITECTURE §3)은 P2-03 커밋에 반영했다.
+5. (낮음, 보류) 격리 테스트 라이브러리별 importorskip 세분화
+6. (낮음, 보류) advanced 스크립트 9개는 테스트가 main() 을 부르게 될 때 경로 로딩으로 변경

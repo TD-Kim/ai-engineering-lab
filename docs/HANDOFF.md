@@ -1,7 +1,7 @@
 # HANDOFF — 작업 세션(②) 인계 문서
 
 > 새 세션은 이 문서와 [ORCHESTRATION.md](ORCHESTRATION.md)를 먼저 읽는다. 세션 역할·메시지 규약·사용자 결정 이력·알려진 함정은 ORCHESTRATION에 있다.
-> **인계 시점 main = `c72bc95`** (이 문서를 갱신한 문서 전용 커밋 직전, 2026-11-16).
+> **최신 갱신: P2-03 커밋(이 문서와 같은 커밋, 2026-11-16).** 그 직전 main = `141f94d`.
 > 방향: **개념은 깊게, 구현은 얕게 — 서비스 설계 중심.** 한 번에 한 실습만 만들고 멈춘다. 다음 실습은 사용자가 "다음"이라고 할 때 ①의 지시로 시작한다.
 
 ## 1. 완료된 작업 (최종 커밋 · ③ 판정)
@@ -18,11 +18,12 @@
 | P2-01 다음 토큰 예측·샘플링 | e401983 → f87c91a | PASS_WITH_NOTES → 반영 | `part2_llm/conftest.py`, pytest.ini 에 part2_llm 추가 |
 | P2-01B 로컬 LLM 서빙·공급자 교체 | 93dce4d(문서) + 6ac51fd | 검증 완료, 권장(거절 폴백·TTFT 의 thinking)은 P2-02 에서 반영 | 사용자 결정으로 추가된 실습 |
 | P2-02 Claude API 기초 | 1e86636 → d01b39d → c2aded7 | 1e86636 PASS_WITH_NOTES → d01b39d 재검증 **PASS**(권장 4건 반영, 변형 6종 포착, 폴백 설명 스킬 대조 일치) · 후속 c2aded7 **PASS** | c2aded7 = 선택 스크립트 6개 경로 로딩 통일 + 격리 테스트 8개(`tests/test_script_isolation.py`) |
-| CLAUDE.md(학습 도우미 규칙) + ENVIRONMENT §7 | c72bc95 | **PASS** (권장 3건은 P2-03 커밋에 포함 예정 → §3) | |
+| CLAUDE.md(학습 도우미 규칙) + ENVIRONMENT §7 | c72bc95 | **PASS** (권장 3건은 P2-03 커밋에 반영) | |
+| P2-03 비용·지연(캐싱·배치·사용량 집계) | (P2-03 커밋) | ③ 검증 요청 예정 | 보류 메모 1~4(CLAUDE.md thinking disabled, ENVIRONMENT §7 순서·§2 실행 정책, ARCHITECTURE §3 `_load_sibling`·pytest.ini)도 같은 커밋 |
 
 모든 PROGRESS 상태는 `NOT_STARTED`(작성된 실습은 메모 "실습 자료 작성 완료, 학습자 확인 전"). `COMPLETED`는 사용자만.
 
-마지막 확인 수치(c72bc95): 루트 `pytest` 184 passed, 1 skipped(P1-02A sentence-transformers 미설치) · `ruff check . --exclude part1_ai_fundamentals/pytorch/starter.py` 통과 · 상대 링크 0 깨짐.
+마지막 확인 수치(P2-03 커밋): 루트 `pytest` 212 passed, 1 skipped(P1-02A sentence-transformers 미설치; P2-03 27개 + 격리 테스트 1개 추가) · `ruff check . --exclude part1_ai_fundamentals/pytorch/starter.py` 통과 · 상대 링크 0 깨짐.
 
 ## 2. 실습별 핵심 메모 (다시 손댈 때 필요한 것)
 
@@ -32,15 +33,14 @@
 - **P1-05** `transformer/`: 마스크 규약 True=볼 수 있음(SDPA bool 과 같음, `key_padding_mask` 는 반대). 한 행 전부 가리면 직접 계산 NaN / torch 2.15 SDPA 는 0. KV 캐시는 미리 할당한 버퍼.
 - **P2-01** `part2_llm/next_token_prediction/`: 단어 `BigramLM`(alpha 0.001), 필터 순서 T → top-k → top-p(테스트로 고정), Qwen 실제 실행은 `run_qwen.py`.
 - **P2-01B** `part2_llm/local_llm_serving/`: 공통 인터페이스 `generate(prompt) -> (text, Usage)`, Fake/Ollama/Claude, 폴백은 `ProviderError`만, 클라이언트 주소 변수 `OLLAMA_BASE_URL`(서버용 `OLLAMA_HOST` 와 구분). GPU 측정은 `measure_local_models.py`(사용자 PC).
+- **P2-03** `part2_llm/llm_api/cost_latency/`: P2-02 solution 을 `_load_p2_02()`(이름 `p2_02_llm_api_basics_for_p2_03`)로 불러 `build_request`·`read_response`·`Usage`·`USAGE_FIELDS` 재사용. system = [지시문, 문서들], 마지막 system 블록에만 `cache_control`. 단가표 `PRICES`(입력·5m 쓰기·1h 쓰기·읽기·출력, 공식 가격 페이지 2026-11-16 확인: opus 5.5 = 4/5/8/0.20/20). 최소 캐시 길이 512(공식 문서). `first_divergence`는 `render_segments`(model→tools→system→messages, cache_control 제거, dict 키 순서 유지)로 비교. 배치는 `fallbacks=False`, errored 원인은 `result.error.error.type`(SDK 타입 확인, 스킬 예시와 다름). 로그는 `log_cached_usage`(P2-01B 열 + cache_write_5m·1h·read·batch), `summarize_usage_log`는 P2-01B 형식도 읽음. 실제 측정 `measure_caching.py`(3회 호출, `--batch`/`--batch-id`). 스크래치 변이 19종 모두 포착.
 - **P2-02** `part2_llm/llm_api/basics/`: `client.beta.messages.create/stream(**req)`, req = model·max_tokens 16000·messages·output_config{effort medium}·system·betas[`server-side-fallback-2026-07-01`]·fallbacks `"default"`. 응답은 stop_reason 먼저 → text 블록만 → 검증 → 폴백 여부. `messages.parse` 대신 `output_config.format` + `anthropic.transform_schema`. 실제 호출 `call_claude.py`(유료). P2-01B 의 `Usage`·`ProviderError`·`log_usage` 를 경로로 로드해 재사용.
 
 ## 3. 보류·남은 작업
 
-**다음 실습 커밋에 함께 넣기로 한 것**(① 지시):
-1. `CLAUDE.md` §6 Claude API 금지 목록에 `thinking: {"type": "disabled"}` 추가(Opus 5.5 에서 400).
-2. `docs/ENVIRONMENT.md` §7 1단계 문장 순서를 실제 순서(clone → cd → §2 venv·설치)로.
-3. `docs/ENVIRONMENT.md` §2 에 PowerShell 실행 정책 안내: `Activate.ps1` 이 "스크립트를 실행할 수 없습니다"로 막히면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 한 번(현재 사용자에게만 적용).
-4. `docs/ARCHITECTURE.md` §3: 선택 스크립트 로딩 규칙 한 줄(`_load_sibling`, 이름 `lab_<상위>_<실습>_<파일>`) 추가, pytest.ini 예시 `testpaths` 를 실제 값 `part1_ai_fundamentals part2_llm tests` 로 정정(현재 예시는 part2_llm 누락).
+**반영 완료(P2-03 커밋)**: 1) CLAUDE.md §6 `thinking: {"type": "disabled"}` 금지, 2) ENVIRONMENT §7 1단계 순서, 3) ENVIRONMENT §2 PowerShell 실행 정책, 4) ARCHITECTURE §3 `_load_sibling` 규칙 + pytest.ini `testpaths` 정정.
+
+**계속 보류**(① 결정: 변경 범위를 작게 — P2-03 에도 넣지 않음):
 5. (낮은 우선순위, ③ 권장) `tests/test_script_isolation.py` 의 skip 세분화: 지금은 tokenizers·torch 중 하나라도 없으면 fixture 전체가 skip — 라이브러리별 importorskip 으로 스크립트별로만 skip.
 6. (낮은 우선순위, ③ 권장) `advanced/` 의 스크립트 9개(`run_demo.py`·`compare_*.py` 등)가 `main()` 을 테스트가 부르게 되는 시점에 `_load_sibling` 경로 로딩으로 변경.
 
@@ -49,10 +49,9 @@
 - P2-01B `ClaudeClient`(최소 어댑터)는 408·409 를 `ProviderError` 로 매핑하지 않음 — Part 6 에서 P2-02 요청 빌더·`classify_error` 와 통일.
 - 사용자 PC 측정이 비어 있는 실행 기록: P1-01 선택 스크립트, P1-02 OpenAI, P2-01 Qwen, P2-01B Ollama·VRAM, P2-02 실제 호출(모두 "측정 필요" 칸).
 
-## 4. 다음에 재개할 첫 단계 — P2-03 (사용자 "다음" + ① 지시 후)
+## 4. 다음에 재개할 첫 단계 — P2-04 (사용자 "다음" + ① 지시 후)
 
-- 실습: **P2-03 비용·지연 — 프롬프트 캐싱, 배치, 토큰 사용량 기록**(LEARNING_ROADMAP W6). 위치 `part2_llm/llm_api/cost_latency/`(llm_api README 색인에 "작성 예정"으로 있음).
-- 재사용: P2-02 `build_request`·`estimate_cost`·`to_usage`·`read_response`, P2-01B `log_usage`·`Usage`. 복사하지 말고 경로 로드(`_load_p2_01b` 방식).
-- SDK 확인 출처(claude-api 스킬): `shared/prompt-caching.md`(접두어 일치, 바뀐 지점 이후만 무효, 모델별 최소 길이, `cache_control`, `usage.cache_read_input_tokens`·`cache_creation_input_tokens`, `input_tokens` 는 캐시 제외 나머지), `python/claude-api/batches.md`(배치 — 서버 측 `fallbacks` 는 Batches 에서 거부되므로 배치 요청은 `fallbacks=False`), `shared/cost-optimization.md`.
-- 규약: TODO 4~6, 테스트는 가짜 SDK·가짜 시계(키·네트워크 불필요), 실제 호출은 선택 스크립트(유료, 키 없으면 "건너뜀"), 단가는 공식 페이지 링크 + 기준일, README 12항목 + 서비스 관점, experiments 는 사용자 PC 칸 비우기, ruff. §3 의 1~4번을 같은 커밋에 반영.
+- 실습: **P2-04 프롬프트 vs RAG vs Fine-tuning 선택 기준 (+ LoRA 개념)**(LEARNING_ROADMAP W6). 위치 `part2_llm/finetuning/`(현재 README 자리표시자).
+- 재사용 후보: P2-03 `cache_cost`·`summarize_usage_log`·`choose_levers`(비용·지연 근거), P2-02 `estimate_cost`. 복사하지 말고 경로 로드.
+- 규약: TODO 4~6, 가짜 객체 테스트, 실제 호출은 선택 스크립트, README 12항목 + 서비스 관점, experiments 사용자 PC 칸, ruff. 보류 5·6번은 ① 지시가 있을 때만.
 - 완료 후: 커밋·푸시 → HANDOFF 갱신 → ③ 검증 요청 → ①에 3~5줄 보고 → 대기.

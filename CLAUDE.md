@@ -60,6 +60,6 @@ $env:IMPL = "solution"; pytest <실습 폴더>\tests     # 정답 코드 검사(
 - **API 키**는 저장소 루트 `.env`에만 둔다. 커밋하지 않는다(`.env.example` 참고).
 - **Claude API 코드** 작성 규칙
   - 모델 ID는 `claude-opus-5-5`(날짜 접미사 없이)를 쓰고, 바꿀 때는 `LLM_MODEL`로 바꾼다.
-  - `temperature`·`top_p`·`top_k`·`budget_tokens`·assistant prefill·강제 `tool_choice`는 쓰지 않는다.
+  - `temperature`·`top_p`·`top_k`·`budget_tokens`·`thinking: {"type": "disabled"}`·assistant prefill·강제 `tool_choice`는 쓰지 않는다(`claude-opus-5-5`에서 400). thinking 깊이는 `output_config.effort`로 정한다.
   - 최신 SDK·API 사용법은 **추측하지 말고** 공식 문서나 설치된 패키지로 확인한다.
 - **사실 확인**: 실제 실행하지 않은 결과·숫자를 지어내지 않는다. 확인할 수 없는 출처는 "미확인"으로 표시한다.

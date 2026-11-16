@@ -40,6 +40,7 @@ Copy-Item .env.example .env      # bash: cp .env.example .env
 notepad .env                      # ANTHROPIC_API_KEY=, OPENAI_API_KEY= 채우기
 ```
 
+- `Activate.ps1`이 "이 시스템에서 스크립트를 실행할 수 없으므로 ... 로드할 수 없습니다"로 막히면 PowerShell 실행 정책 때문이다. 한 번만 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 실행한 뒤 다시 활성화한다(현재 사용자에게만 적용, 관리자 권한 불필요). 정책 설명: https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_execution_policies (작성 환경에서 열람 불가 — 미확인)
 - `.env`는 `.gitignore`에 등록되어 있다. 키를 `.env.example`이나 코드에 쓰지 않는다.
 - `.env.example`의 `LLM_MODEL`(기본 `claude-opus-5-5`)·`EMBEDDING_MODEL`(기본 `text-embedding-3-small`)로 모델을 바꾼다.
 
@@ -172,11 +173,12 @@ if __name__ == "__main__":
 
 저장소 루트의 [CLAUDE.md](../CLAUDE.md)에 학습 도우미 규칙이 있습니다. 정답을 먼저 쓰지 않고 힌트를 단계적으로 올리며, 내 코드를 고치지 않고 틀린 이유만 설명하는 규칙입니다. Claude Code는 이 파일을 읽고 그 규칙대로 돕습니다.
 
-1. **PC에 클론하고 환경 준비**: 위 §2 순서대로 `uv venv --python 3.12 .venv` → 활성화 → 의존성 설치.
+1. **PC에 클론하고 환경 준비**: 먼저 클론하고 저장소 폴더로 이동한 뒤, 위 §2 순서대로 `uv venv --python 3.12 .venv` → 활성화 → 의존성 설치를 한다.
 
    ```powershell
    git clone https://github.com/TD-Kim/ai-engineering-lab.git
    cd ai-engineering-lab
+   # 이어서 §2 의 1)~6) (가상환경·PyTorch·의존성·.env)
    ```
 
 2. **VS Code로 저장소 루트 폴더를 연다.** Claude Code 확장 설치·로그인 방법과 메뉴 이름은 공식 문서를 확인하세요(https://code.claude.com/docs).

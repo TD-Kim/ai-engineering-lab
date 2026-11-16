@@ -199,6 +199,7 @@ def test_embedding_prefix_rules(impl):
     assert impl.embedding_prefix("intfloat/multilingual-e5-small", "query") == "query: "
     assert impl.embedding_prefix("intfloat/multilingual-e5-small", "passage") == "passage: "
     assert impl.embedding_prefix("BAAI/bge-m3", "query") == ""
+    assert impl.embedding_prefix("intfloat/Multilingual-E5-small", "passage") == "passage: "   # 대소문자 무시
     with pytest.raises(ValueError):
         impl.embedding_prefix("BAAI/bge-m3", "doc")
 

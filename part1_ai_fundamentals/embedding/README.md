@@ -86,6 +86,8 @@ TODO 3~5는 `embed_fn: list[str] -> list[list[float]]` 모양만 알면 되므�
 
 **왜 채팅용 LLM(Qwen 등)을 임베딩에 쓰면 안 되나?** 채팅용 LLM은 "다음 토큰 맞히기"로 학습되어 문장 하나를 벡터 하나로 요약하는 법을 배우지 않았습니다. 은닉 상태를 평균 내 써도 검색 품질이 나쁩니다. 검색에는 임베딩 전용 모델을 씁니다.
 
+**`encode()`에 접두어를 직접 붙이는 이유와 주의**: sentence-transformers에는 `encode_query()`·`encode_document()`가 있어, 모델 설정의 `prompts`에 `"query"` 프롬프트가 정의돼 있으면 접두어를 자동으로 붙입니다(패키지 6.3.0 소스 확인). 이 실습은 원리를 보이려고 `encode()`에 `embedding_prefix()`로 **직접** 붙이므로, 두 방식을 섞으면 접두어가 두 번 붙을 수 있습니다 — 하나만 쓰세요.
+
 **꼭 지킬 규칙**
 1. **문서와 질문은 같은 모델로.** 모델이 다르면 벡터 공간이 달라 점수가 의미 없습니다.
 2. **모델을 바꾸면 전부 재임베딩.** 차원이 같아도 공간이 다릅니다. 벡터와 함께 모델 이름·차원을 저장합니다.
@@ -243,7 +245,7 @@ python part1_ai_fundamentals/embedding/embed_with_provider.py --provider fake   
 | `embed_with_openai.py`가 `건너뜀` | `.env`에 `OPENAI_API_KEY` 없음 | `cp .env.example .env`(PowerShell: `Copy-Item .env.example .env`) 후 입력(커밋 금지) |
 | `ValueError: ... OpenAI 모델입니다` | 공급자는 바꿨는데 `EMBEDDING_MODEL`에 `text-embedding-3-small`이 남음 | `.env`의 모델 이름을 그 공급자 것으로 |
 | 로컬 모델로 바꿨더니 검색이 이상함 | 문서는 예전 모델 벡터, 질문은 새 모델 벡터 | 문서 전체 재임베딩 |
-| e5 모델인데 점수가 낮게 나옴 | `query: `/`passage: ` 접두어 누락 | 모델 이름에 `e5`가 있어야 자동으로 붙음(제공 코드). 다른 이름의 e5 파생 모델이면 모델 카드 확인 |
+| e5 모델인데 점수가 낮게 나옴 | `query: `/`passage: ` 접두어 누락 | 모델 이름에 `e5`가 있어야 자동으로 붙음(제공 코드). **이 함수는 기본 e5 규칙(`query:`/`passage:`)만 처리합니다. e5-instruct 같은 변형이나 다른 임베딩 모델은 각 모델 카드의 형식을 따르세요(미확인)** |
 | `Ollama 서버에 연결할 수 없습니다` | 서버가 꺼져 있거나 주소 틀림 | `ollama serve`, `OLLAMA_BASE_URL`(클라이언트 주소 — 서버용 `OLLAMA_HOST`와 다른 변수) |
 | `sentence_transformers 패키지가 없습니다` | 선택 의존성 미설치 | `uv pip install sentence-transformers` |
 

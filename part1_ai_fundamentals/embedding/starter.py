@@ -98,6 +98,7 @@ def embedding_prefix(model: str, role: str) -> str:
     근거: bge-m3 는 공식 FlagEmbedding README 모델표의 "query instruction for retrieval" 칸이 비어 있다(2026-11-16 확인).
           e5 의 "query: "/"passage: " 규칙은 Hugging Face 모델 카드(intfloat/multilingual-e5-small)에 적혀 있다
           — 작성 환경에서 huggingface.co 접속 불가 → 미확인. 쓰기 전에 모델 카드에서 확인하자.
+    한계: 이 함수는 기본 e5 규칙(query:/passage:)만 처리한다. e5-instruct 같은 변형이나 다른 임베딩 모델은 각 모델 카드의 형식을 따를 것(미확인).
     """
     if role not in ROLES:
         raise ValueError(f"role must be one of {ROLES}")

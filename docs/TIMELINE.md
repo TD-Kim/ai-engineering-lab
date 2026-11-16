@@ -29,3 +29,11 @@
   - 새로 작성: `git`, `file_at`, `definitions`, `changed_files`, `describe_functions`, `build_entry`, `append`, `main`
 - `spring_boot_server/README.md` (추가)
 - 메모: 
+
+## 2026-11-17
+
+### 01:57 — 2026. 11. 17. 학습방법 개편 및 시작
+
+- `python_ai_server/pyproject.toml` (수정)
+- `python_ai_server/src/ai_server/llm/ollama_chat.py` (추가)
+- 메모: 

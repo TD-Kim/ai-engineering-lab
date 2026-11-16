@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "AI Engineering Learning Lab — Python AI 서버 (RAG·GraphRAG)"
 requires-python = ">=3.12"
 # 필요한 라이브러리는 기능을 만들 때 하나씩 추가한다 (기획서 §6-2 참고).
-dependencies = []
+dependencies = [
+    "requests"
+]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]

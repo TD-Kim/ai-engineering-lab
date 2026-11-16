@@ -167,3 +167,30 @@ if __name__ == "__main__":
 | bitsandbytes 로딩 오류 | 구버전 또는 비공식 빌드 | 최신 공식 휠로 재설치, 버전 재확인 |
 | Neo4j 데이터가 사라짐 | 참고 저장소 스크립트가 DB 초기화 | 이 저장소용 별도 DB/컨테이너 사용 |
 | HF 모델 다운로드가 C 드라이브를 채움 | 기본 캐시 위치 | `HF_HOME` 환경 변수로 캐시 위치 변경 |
+
+## 7. VS Code + Claude Code로 학습하기
+
+저장소 루트의 [CLAUDE.md](../CLAUDE.md)에 학습 도우미 규칙이 있습니다. 정답을 먼저 쓰지 않고 힌트를 단계적으로 올리며, 내 코드를 고치지 않고 틀린 이유만 설명하는 규칙입니다. Claude Code는 이 파일을 읽고 그 규칙대로 돕습니다.
+
+1. **PC에 클론하고 환경 준비**: 위 §2 순서대로 `uv venv --python 3.12 .venv` → 활성화 → 의존성 설치.
+
+   ```powershell
+   git clone https://github.com/TD-Kim/ai-engineering-lab.git
+   cd ai-engineering-lab
+   ```
+
+2. **VS Code로 저장소 루트 폴더를 연다.** Claude Code 확장 설치·로그인 방법과 메뉴 이름은 공식 문서를 확인하세요(https://code.claude.com/docs).
+3. **학습 루프**: `starter.py`의 TODO 하나 채우기 → 테스트 → 실패 메시지 읽기 → 다시 채우기.
+
+   ```powershell
+   .\.venv\Scripts\Activate.ps1
+   $env:IMPL = "starter"; pytest part2_llm\llm_api\basics\tests -x
+   Remove-Item Env:IMPL
+   ```
+
+4. **편집 자동 승인은 켜지 않는 것을 권장합니다.** Claude Code가 파일을 바꾸려 하면 변경 내용(diff)을 직접 읽고 승인하세요. 내가 쓰려던 코드를 대신 써 버리는 일을 막고, 무엇이 바뀌는지 배울 수 있습니다. 권한·승인 설정 방법은 공식 문서를 확인하세요.
+5. **막혔을 때 묻는 문장 예시**
+   - "P2-02 TODO 3 에서 `test_parse_structured_success_and_errors` 가 실패해. 정답 말고 힌트 1단계만 줘."
+   - "내가 쓴 `l2_normalize` 가 정사각 행렬에서만 틀려. 왜 그런지 작은 숫자 예시로 설명해 줘. 코드는 고치지 마."
+   - "`keepdim=True` 가 브로드캐스팅에서 왜 필요한지 이 저장소 README 설명 기준으로 알려 줘."
+

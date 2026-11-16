@@ -76,6 +76,8 @@ ai-engineering-lab/
 진행 상태는 [docs/PROGRESS.md](docs/PROGRESS.md)에서 관리하며,
 **학습자가 직접 확인한 실습만 `COMPLETED`** 로 바꿉니다.
 
+VS Code에서 Claude Code와 함께 학습할 때의 규칙은 [CLAUDE.md](CLAUDE.md), 준비 방법은 [ENVIRONMENT §7](docs/ENVIRONMENT.md#7-vs-code--claude-code로-학습하기)에 있습니다(정답 대신 단계별 힌트, 내 코드는 설명만).
+
 ## 참고
 
 - 참고 저장소: [TD-Kim/graphRAG_learning](https://github.com/TD-Kim/graphRAG_learning) —

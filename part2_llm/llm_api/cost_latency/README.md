@@ -3,11 +3,11 @@
 | 항목 | 값 |
 |---|---|
 | 실습 ID | P2-03 (메인) |
-| 주차 · 진행 순서 | W6 · P2-02 다음 |
-| 예상 시간 | 3~4시간 |
-| 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p2_03_cost_latency.py`, `run_demo.py`, 선택: `measure_caching.py`(API 키 필요, 유료) |
 | 소속 | [Part 2 — LLM 활용 원리](../../README.md) · [llm_api](../README.md) |
-| 재사용 | [P2-02](../basics/README.md)의 `build_request`·`read_response`·`Usage`(P2-01B)·로그 열(`USAGE_FIELDS`)을 경로로 불러 씁니다(복사하지 않음) |
+
+> **최종 서비스에서의 위치:** RAG의 **시스템 프롬프트·고정 문서 캐싱**(Part 3), 색인 시 엔티티·관계 추출과 평가 채점의 **배치 처리**(Part 3 P3-07, Part 4), 요청별 **토큰·캐시 적중률·p95 지연 집계**와 예산 알림(Part 6 P6-04)에 쓰입니다.
+
+> 이 문서에 나오는 `함수·파일 이름`(예: `run_demo.py`)은 이전 실습 코드(커밋 `aa46d2f`)의 이름입니다. 그 코드는 지웠고 개념만 남겼습니다. 옛 코드가 필요하면 `git checkout aa46d2f`(복구 방법은 [루트 README](../../../README.md#지금-어디를-보면-되나-학습-방식)).
 
 > 방향: **개념은 깊게, 구현은 얕게.** "같은 품질에서 비용·지연을 줄이는 설계"를 캐싱·배치·사용량 기록으로 익힙니다. 무엇을 앞에 두면 캐시가 읽히는지, 무엇이 캐시를 깨는지, 언제 배치를 쓸 수 있는지를 코드와 숫자로 확인합니다. 테스트와 데모는 가짜 SDK로 돌아가고, 실제 측정은 선택 스크립트입니다.
 
@@ -74,11 +74,11 @@
 - **breakpoint는 "모든 요청에 공통인 마지막 블록"에.** 질문 블록에 두면 질문마다 다른 캐시를 써서 아무것도 읽히지 않는다(쓰기 값만 낸다).
 - **흔한 범인**(스킬 Silent invalidators): 시스템 프롬프트의 현재 시각·요청 ID, 정렬하지 않은 JSON 직렬화(키 순서), 사용자마다 다른 도구 목록, 조건부 시스템 문단, 모델 교체, effort·thinking 변경.
 - **멀티턴은 정상**: 다음 요청이 "앞 요청 + 새 턴"이면 앞 요청 전체가 접두어라 읽힌다. `first_divergence`가 `location=None`을 돌려주는 경우다.
-- 찾는 방법: 직전·직후 요청 본문 두 개를 `first_divergence`로 비교한다(TODO 3). Claude API에는 같은 비교를 서버가 해 주는 **cache diagnostics**(베타)도 있다 — 요청마다 `diagnostics` 객체를 보내야 하므로 처음부터 켜 둬야 한다(스킬 `shared/prompt-caching.md`, 현재 형태는 공식 Cache diagnostics 페이지 확인).
+- 찾는 방법: 직전·직후 요청 본문 두 개를 `first_divergence`로 비교한다. Claude API에는 같은 비교를 서버가 해 주는 **cache diagnostics**(베타)도 있다 — 요청마다 `diagnostics` 객체를 보내야 하므로 처음부터 켜 둬야 한다(스킬 `shared/prompt-caching.md`, 현재 형태는 공식 Cache diagnostics 페이지 확인).
 
 ### 4-3. 캐시가 지연에 주는 영향
 
-캐시를 읽으면 그 앞부분의 입력 처리(prefill)를 다시 하지 않아 **TTFT가 줄 수 있다**. 줄어드는 양은 앞부분 길이·서버 상태에 따라 다르므로 이 저장소에는 숫자를 적지 않았다 — `measure_caching.py`로 사용자 PC에서 잰다. Claude의 TTFT에는 thinking 시간도 들어 있으므로(P2-02 §4-4), 캐시 효과를 보려면 같은 effort로 비교한다.
+캐시를 읽으면 그 앞부분의 입력 처리(prefill)를 다시 하지 않아 **TTFT가 줄 수 있다**. 줄어드는 양은 앞부분 길이·서버 상태에 따라 다르므로 이 저장소에는 숫자를 적지 않았다 — 직접 잰다. Claude의 TTFT에는 thinking 시간도 들어 있으므로(P2-02 §4-4), 캐시 효과를 보려면 같은 effort로 비교한다.
 
 ### 4-4. 배치는 "공짜 할인"이 아니다
 
@@ -122,106 +122,7 @@
 
 1번째는 쓰기 값(1.25×) 때문에 오히려 비싸고, 2번째부터 이득이다(5분 수명의 손익분기 = 2회). 1시간 수명은 쓰기가 2×라 3회 이상 읽어야 이득이다. 단가는 바뀌므로 사용 전 [공식 가격 페이지](https://platform.claude.com/docs/en/about-claude/pricing)에서 다시 확인하세요.
 
-## 6. 실행법
-
-저장소 루트에서 실행합니다.
-
-**Windows PowerShell**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:PYTHONUTF8 = "1"
-pip install -r requirements/part2.txt
-
-# 1) 남은 TODO 확인
-python part2_llm/llm_api/cost_latency/starter.py
-
-# 2) 직접 구현 검사 (TODO 가 남은 테스트는 skip)
-$env:IMPL = "starter"; pytest part2_llm/llm_api/cost_latency/tests; Remove-Item Env:IMPL
-
-# 3) 정답 코드 검사
-pytest part2_llm/llm_api/cost_latency/tests
-
-# 4) 데모 (가짜 SDK, 키 불필요)
-python part2_llm/llm_api/cost_latency/run_demo.py --impl starter
-
-# 5) (선택) 실제 측정 — 유료(호출 3회). .env 에 ANTHROPIC_API_KEY (커밋 금지)
-Copy-Item .env.example .env   # 처음 한 번
-python part2_llm/llm_api/cost_latency/measure_caching.py
-python part2_llm/llm_api/cost_latency/measure_caching.py --batch            # 배치 2건 추가로 보냄(결과는 나중에)
-python part2_llm/llm_api/cost_latency/measure_caching.py --batch-id msgbatch_...   # 배치 결과 확인
-```
-
-**bash (Linux/macOS)**
-
-```bash
-source .venv/bin/activate
-IMPL=starter pytest part2_llm/llm_api/cost_latency/tests
-pytest part2_llm/llm_api/cost_latency/tests
-python part2_llm/llm_api/cost_latency/run_demo.py
-python part2_llm/llm_api/cost_latency/measure_caching.py      # 선택, 유료
-```
-
-- 테스트는 키·네트워크가 필요 없습니다. usage·배치 결과는 가짜 객체, 폴링의 sleep도 가짜 함수입니다. 스레드·대기 반복이 없습니다.
-- `IMPL=starter`에서도 제공 코드만 검사하는 테스트 2개(`wait_for_batch`, 단가·상수 확인)는 통과합니다. 나머지 27개가 TODO 미구현으로 skip입니다.
-- 데모는 `--log` 경로(기본 `part2_llm/llm_api/cost_latency/outputs/usage_demo.csv`, git 제외)를 매번 새로 씁니다. `measure_caching.py`의 `outputs/usage_real.csv`는 누적됩니다.
-
-## 7. TODO 목록
-
-| TODO | 함수 | 내용 |
-|---|---|---|
-| 1 | `cache_marker`, `build_cached_request` | TTL 표시(5m/1h), system = [지시문, 문서들]의 **마지막 블록에만** `cache_control`, 질문은 messages(P2-02 `build_request` 재사용) |
-| 2 | `read_cache_usage`, `cache_cost` | usage 세 칸 + TTL 구분(`cache_creation`) → `CacheUsage`, 칸별 단가로 실제·캐시 없었다면·절감, 배치 할인 |
-| 3 | `first_divergence` | `render_segments` 두 목록을 앞에서부터 비교 → 첫 차이 위치·글자 위치·공통 길이, 바뀐 설정(effort 등) |
-| 4 | `build_batch`, `collect_batch_results` | `custom_id` 형식(`fullmatch`)·중복·배치 불가 키 검사, 결과를 `custom_id`로 분류(성공·재전송·수정·취소·누락·보내지 않은 id) |
-| 5 | `p95`, `summarize_usage_log` | nearest-rank p95, CSV 집계(토큰·적중률·평균/p95 지연·총비용·stop_reason, P2-01B 형식 로그도 읽기) |
-| 6 (선택) | `choose_levers` | 캐싱(5m/1h/없음)·배치·effort_low·max_tokens_cap 규칙 |
-
-제공 코드: `count_breakpoints`, `CacheUsage`(`prompt_tokens`·`status`), `CostBreakdown`, `render_segments`, `PrefixDiff`, `BatchOutcome`, `wait_for_batch`(횟수 상한 폴링), `log_cached_usage`(P2-01B 로그 열 + 캐시·배치 열), `UsageReport`, `Workload`, 단가표 `PRICES`. P2-02에서 불러온 `build_request`·`read_response`·`Usage`.
-
-## 8. 예상 결과
-
-아래는 클라우드 작업 환경(Python 3.12.13, anthropic 2.6.0)에서 `run_demo.py --impl solution`을 **실제로 실행한 출력**입니다. 다만 **가짜 SDK가 캐시를 흉내 낸 것**이라 토큰 수는 "글자 2개 = 1토큰"으로 센 가짜 값이고, 지연도 미리 정한 가짜 값입니다. Claude의 실제 토큰 수·지연이 아닙니다(형식 예시). 실제 값은 `measure_caching.py`로 사용자 PC에서 얻어 experiments 기록에 적으세요. 이 환경에서는 키가 없어 `건너뜀: ANTHROPIC_API_KEY 가 없습니다`로 끝났습니다.
-
-```
-[1] 캐시 친화적 요청 (TODO 1) — 고정 지시문·문서는 system 앞쪽, 질문은 messages 맨 뒤
-    system[0] '당신은 사내 규정 안내원입니다. 아래 규정 '... 가짜 토큰 28  cache_control=None
-    system[1] '제1조 (휴가 규정 1) 직원은 연차를 사용'... 가짜 토큰 1430  cache_control={'type': 'ephemeral'}
-    messages[-1] = {'role': 'user', 'content': '연차는 며칠 전까지 신청해야 해?'}   breakpoint 1개 (최대 4)
-[2] 같은 앞부분 + 다른 질문 → 캐시 쓰기 → 읽기 → (시스템 프롬프트에 시각을 넣으면) 다시 쓰기 (TODO 2)
-    요청                           상태         정가입력     캐시쓰기     캐시읽기      실제 $     캐시없음 $      절감 $
-    연차는 며칠 전까지 신청해야 해?           write         9     1458        0   0.00973    0.00827  -0.00146
-    반차도 같은 규칙이야?                 hit           6        0     1458   0.00272    0.00826   0.00554
-    [시각 포함] 팀장이 승인을 안 하면?        write         6     1470        0   0.00977    0.00830  -0.00147
-[3] 왜 깨졌나 (TODO 3) — 두 요청 본문을 앞에서부터 비교
-    첫 차이: system[0], 세그먼트 안 0번째 글자, 공통 15글자
-    a: '당신은 사내 규정 안내원입니다. 아래 규정 문서에 근거'
-    b: '현재 시각 2026-11-16 09:05. 당신은 사내'
-    (정상) 질문만 다른 두 요청: 첫 차이 messages[0].user → system 까지는 캐시를 읽는다
-    effort 만 바꾼 요청: 본문 차이 None, 바뀐 설정 ['output_config'] → 캐시 영향 있음(경로마다 고정)
-[4] 배치 (TODO 4) — custom_id 로 결과 맞추기, 50% 할인 (가짜 결과, 도착 순서 뒤섞임)
-    요청 3개, params 키: ['max_tokens', 'messages', 'model', 'output_config', 'system']  (fallbacks·betas 없음)
-    성공 ['policy-q0', 'policy-q1']  다시 보낼 것 ['policy-q2']  고칠 것 []  빠진 것 []
-    policy-q0: 일반 $0.00273 → 배치 $0.00136
-    policy-q1: 일반 $0.00272 → 배치 $0.00136
-[5] 사용량 로그 집계 (TODO 5) — part2_llm/llm_api/cost_latency/outputs/usage_demo.csv
-    요청 5, 정가입력 36, 캐시쓰기 2928, 캐시읽기 4374, 출력 600
-    캐시 적중률(토큰) 59.6%, 평균 지연 1720 ms, p95 2400 ms (가짜 지연), 총비용 $0.02494, stop_reason {'end_turn': 5}
-[6] 언제 무엇을 쓰나 (TODO 6, 선택)
-    사내 규정 챗봇(사용자 대기, 1분 간격)    → ['cache_5m', 'max_tokens_cap']
-    야간 엔티티 추출(색인)              → ['cache_5m', 'batch', 'effort_low', 'max_tokens_cap']
-    하루 한 번 보고서                 → ['batch', 'max_tokens_cap']
-```
-
-**해석**
-- [1] breakpoint는 마지막 system 블록(규정 문서)에 하나. 질문에는 표시가 없습니다.
-- [2] 1번째는 쓰기라 캐시 없을 때보다 비싸고(절감이 음수), 2번째는 같은 앞부분을 읽어 약 1/3 값입니다. 3번째는 지시문 앞에 시각을 붙여서 앞부분 전체를 다시 썼습니다.
-- [3] `first_divergence`가 `system[0]`의 0번째 글자를 가리킵니다 — 시각을 맨 앞에 붙였기 때문입니다(공통 15글자는 앞의 model 값). 질문만 다른 두 요청은 `messages`에서 갈려 system까지는 캐시를 읽습니다. effort만 바꾸면 본문 차이는 없지만 `settings_changed`가 알려 줍니다.
-- [4] 결과가 섞여 와도 `custom_id`로 맞춥니다. `overloaded_error`는 다시 보낼 목록으로 갑니다. 배치 비용은 일반의 절반입니다.
-- [5] 적중률은 **토큰 기준**입니다. 지연은 가짜 값이라 평균·p95의 숫자 자체에는 의미가 없고, 계산 형식만 보세요.
-- [6] 챗봇은 캐싱만, 야간 추출은 캐싱 + 배치 + 낮은 effort, 하루 한 번 보고서는 간격이 1시간을 넘어 캐싱 없이 배치만 나옵니다.
-
-## 9. 자주 나는 오류
+## 6. 자주 나는 오류
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
@@ -236,16 +137,15 @@ python part2_llm/llm_api/cost_latency/measure_caching.py      # 선택, 유료
 | 배치가 안 끝남 | 대부분 1시간이지만 최대 24시간 | 무한 대기 대신 횟수 상한 폴링, 나중에 `--batch-id`로 확인 |
 | effort를 바꿨더니 비용이 뜀 | effort 변경 = messages 캐시 무효 | 경로마다 effort 고정 |
 
-## 10. 과제
+## 7. 과제
 
-1. (키가 있으면) `measure_caching.py`를 실행해 세 요청의 usage·지연·비용을 experiments 표에 기록하세요. 1) 쓰기 → 2) 읽기 → 3) 다시 쓰기가 실제로 나오나요? 2)의 지연이 1)보다 짧았나요(같은 effort)?
-2. `run_demo.py`의 `stamped`를 "지시문 뒤에 시각을 붙이기"로 바꿔 보세요. `first_divergence`의 결과와 캐시 쓰기 토큰이 어떻게 바뀌나요? 시각을 아예 질문(messages) 쪽으로 옮기면?
+1. (키가 있으면) 같은 앞부분에 질문만 바꿔 세 번 호출해 usage·지연·비용을 표로 기록하세요. 1) 쓰기 → 2) 읽기 → 3) 다시 쓰기가 실제로 나오나요? 2)의 지연이 1)보다 짧았나요(같은 effort)?
+2. 시스템 프롬프트에 현재 시각을 붙였다가 지시문 뒤·질문(messages) 쪽으로 옮겨 보세요. 두 요청을 앞에서부터 비교한 첫 차이 위치와 캐시 쓰기 토큰이 어떻게 바뀌나요? 시각을 아예 질문(messages) 쪽으로 옮기면?
 3. 사내 규정 챗봇(규정집 2만 토큰, 하루 2,000 질문, 평균 간격 30초)의 하루 입력 비용을 캐싱 있음/없음으로 계산해 보세요(출력은 같다고 가정). 간격이 20분이면 TTL을 무엇으로 고르겠어요?
 4. (선택, 키가 있으면) `--batch`로 2건을 보내고 결과가 오는 데 걸린 시간을 기록하세요. 이 시간을 보고 어떤 작업에 배치를 쓰겠어요?
 
-## 11. 체크리스트
+## 8. 체크리스트
 
-- [ ] `IMPL=starter pytest part2_llm/llm_api/cost_latency/tests` 가 모두 통과한다
 - [ ] 캐싱이 접두어 일치라는 것과 breakpoint를 어디에 두어야 하는지 설명할 수 있다
 - [ ] usage의 세 입력 칸과 "입력 전체 = 세 칸 합"을 안다
 - [ ] 캐시를 깨는 흔한 원인 4가지 이상과 찾는 방법을 말할 수 있다
@@ -253,7 +153,7 @@ python part2_llm/llm_api/cost_latency/measure_caching.py      # 선택, 유료
 - [ ] 배치의 50% 할인과 맞바꾸는 것(최대 24시간·순서 무관·폴백 없음)을 안다
 - [ ] p95가 평균보다 서비스 지표로 나은 이유를 말할 수 있다
 
-## 12. 다음 단계 연결
+## 9. 다음 단계 연결
 
 - **P2-04**: 프롬프트 vs RAG vs Fine-tuning 선택 기준 — 비용·지연 표를 판단 근거로 씁니다.
 - **Part 3**: RAG 시스템 프롬프트·고정 문서 캐싱, P3-07 평가 세트 채점을 배치로.
@@ -265,4 +165,3 @@ python part2_llm/llm_api/cost_latency/measure_caching.py      # 선택, 유료
 - claude-api 스킬(작성 시점 2026-11-16): `shared/prompt-caching.md`(invariant, placement patterns, silent invalidators, API reference, Choosing the TTL, Verifying cache hits, Invalidation hierarchy), `python/claude-api/README.md`(Prompt Caching), `python/claude-api/batches.md`, `shared/cost-optimization.md`(공짜 수단 먼저, 배치 2.5절)
 - 공식 문서(2026-11-16 작성 환경에서 열람): 가격 https://platform.claude.com/docs/en/about-claude/pricing , 프롬프트 캐싱 https://platform.claude.com/docs/en/build-with-claude/prompt-caching , 배치 https://platform.claude.com/docs/en/build-with-claude/batch-processing
 - 설치된 anthropic 2.6.0: `types/usage.py`(`cache_creation_input_tokens`·`cache_read_input_tokens`·`cache_creation`), `types/cache_creation.py`, `types/messages/message_batch_*_result.py`, `types/messages/batch_create_params.py`
-- Python 문서 `csv.DictReader` https://docs.python.org/3/library/csv.html#csv.DictReader (작성 환경에서 열람 불가 — 미확인, 동작은 설치된 Python 3.12 로 실행해 확인)

@@ -3,11 +3,11 @@
 | 항목 | 값 |
 |---|---|
 | 실습 ID | P1-01 (메인) |
-| 주차 · 진행 순서 | W2 · P1-04(PyTorch) 다음 |
-| 예상 시간 | 2~3시간 |
-| 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p1_01_tokenizer.py`, `run_demo.py`, 선택: `count_with_claude.py`(API 키 필요), `pretrained_tokenizer.py`(인터넷 필요) |
 | 소속 | [Part 1 — AI 원리](../README.md) |
-| 선택 과제 | [advanced/](./advanced/README.md) — BPE 직접 구현 (P1-01A) |
+
+> **최종 서비스에서의 위치:** 토큰 수는 RAG의 **청크 크기**(Part 3 청킹), **컨텍스트 창에 넣을 문서 수**, **API 비용 추정·추적**(Part 6 비용 로그)을 계산하는 단위입니다. Python AI 서버가 LLM·임베딩을 호출하기 전에 항상 거치는 숫자입니다.
+
+> 이 문서에 나오는 `함수·파일 이름`(예: `run_demo.py`)은 이전 실습 코드(커밋 `aa46d2f`)의 이름입니다. 그 코드는 지웠고 개념만 남겼습니다. 옛 코드가 필요하면 `git checkout aa46d2f`(복구 방법은 [루트 README](../../README.md#지금-어디를-보면-되나-학습-방식)).
 
 > 방향: **개념은 깊게, 구현은 얕게.** BPE 알고리즘은 라이브러리(Hugging Face `tokenizers`)에 맡기고, 토큰 수를 "서비스 설계 숫자"로 쓰는 법을 익힙니다.
 
@@ -83,7 +83,7 @@
 | RAG 비용은 어디서 커지나? | 검색 문서를 입력에 넣으므로 **입력 토큰**이 커진다 → 청크 크기 × 상위 k 개가 비용을 정한다 |
 | 청크는 몇 토큰으로? | 작으면 검색은 정밀하지만 문맥 부족, 크면 비용·지연 증가. 오버랩은 저장·임베딩 비용을 `max/(max−overlap)`배 늘린다 → Part 3 P3-02에서 측정 |
 | 문서가 컨텍스트 창보다 길면? | 출력 몫을 먼저 예약하고, 남은 예산 안에서 **무엇을 넣을지 고른다**(RAG·요약). 자르면 로그를 남긴다 |
-| 로컬에서 센 토큰 수로 청구액을 맞출 수 있나? | 없다. 이 실습의 로컬 BPE는 원리용이다. Claude 비용은 `messages.count_tokens`(→ `count_with_claude.py`), 실제 사용량은 응답의 `usage`로 확인 |
+| 로컬에서 센 토큰 수로 청구액을 맞출 수 있나? | 없다. 이 실습의 로컬 BPE는 원리용이다. Claude 비용은 `messages.count_tokens`(호출 전 추정), 실제 사용량은 응답의 `usage`로 확인 |
 
 ## 5. 수식
 
@@ -100,94 +100,7 @@
 | `claude-sonnet-5-5` | 2.00 | 10.00 |
 | `claude-haiku-5-5` | 0.10 | 0.50 (프롬프트 10만 토큰 이하 기준) |
 
-## 6. 실행법
-
-저장소 루트에서 실행합니다.
-
-**Windows PowerShell**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:PYTHONUTF8 = "1"
-pip install -r requirements/part1.txt
-
-# 1) 남은 TODO 확인
-python part1_ai_fundamentals/tokenizer/starter.py
-
-# 2) 직접 구현 검사 (TODO 가 남은 테스트는 skip)
-$env:IMPL = "starter"; pytest part1_ai_fundamentals/tokenizer/tests; Remove-Item Env:IMPL
-
-# 3) 정답 코드 검사
-pytest part1_ai_fundamentals/tokenizer/tests
-
-# 4) 데모 (다운로드·API 키 불필요)
-python part1_ai_fundamentals/tokenizer/run_demo.py --impl starter
-
-# 5) (선택) Claude 기준 토큰 수 — .env 를 만들고 ANTHROPIC_API_KEY 를 채운다 (커밋 금지)
-Copy-Item .env.example .env   # 처음 한 번. 이후 .env 에 키 입력
-python part1_ai_fundamentals/tokenizer/count_with_claude.py
-
-# 6) (선택) 공개 모델 토크나이저와 비교 — 인터넷 필요(tokenizer.json 만 받고 모델 가중치는 받지 않음)
-python part1_ai_fundamentals/tokenizer/pretrained_tokenizer.py
-```
-
-**bash (Linux/macOS)**
-
-```bash
-source .venv/bin/activate
-cp .env.example .env    # (선택 스크립트용, 처음 한 번) 이후 .env 에 키 입력
-python part1_ai_fundamentals/tokenizer/starter.py
-IMPL=starter pytest part1_ai_fundamentals/tokenizer/tests
-pytest part1_ai_fundamentals/tokenizer/tests
-python part1_ai_fundamentals/tokenizer/run_demo.py --impl solution
-```
-
-- 테스트는 다운로드도 API 호출도 하지 않습니다. 토크나이저는 `part1_ai_fundamentals/data/corpus_ko_en.txt`로 몇 초 안에 학습하고, Claude 토큰 세기는 **가짜 클라이언트**로 검사합니다(이 테스트는 starter와 무관해 starter 모드에서도 통과).
-- `count_with_claude.py`의 모델은 환경 변수 `LLM_MODEL`로 바꿉니다(기본 `claude-opus-5-5`). 토큰 세기 API는 모델을 실행하지 않고 개수만 돌려줍니다. 요금·호출 한도는 공식 문서에서 확인하세요(미확인).
-
-## 7. TODO 목록
-
-| TODO | 함수 | 내용 | 서비스에서 쓰는 곳 |
-|---|---|---|---|
-| 1 | `count_tokens` | 토큰 수 세기 | 모든 비용·예산 계산의 출발점 |
-| 2 | `compare_languages` | 언어별 문자 수 / 토큰 수 / 글자당 토큰 | 한국어 서비스 비용 보정 |
-| 3 | `estimate_cost` | 단가표로 비용 추정, 모르는 모델은 `KeyError` | 모델 선택, 월 예산 |
-| 4 | `chunk_by_tokens` | start/end 를 옮기며 토큰 예산 + 오버랩으로 청크 (글자 경계·무한 반복 방지는 제공 함수) | RAG 인덱싱(Part 3) |
-| 5 | `fit_to_context` | 출력 몫을 뺀 예산만큼 앞부분 남기기 | 컨텍스트 초과 방지 |
-
-제공 코드: `train_local_tokenizer`(로컬 BPE 학습), `is_char_boundary`(토큰 i 앞에서 잘라도 글자가 안전한가), `snap_chunk_end`(조각 끝을 글자 경계로 맞추고, 한 글자가 예산보다 크면 통째로 담음), `snap_next_start`(다음 시작을 글자 경계로 맞추고 반드시 앞으로 나아가게 함), `PRICES_PER_MTOK`(단가표).
-
-## 8. 예상 결과
-
-아래는 클라우드 작업 환경(CPU, Python 3.12.13, tokenizers 0.23.3)에서 `run_demo.py --impl solution`을 **실제로 실행한 출력**입니다.
-
-```
-[1] 말뭉치: chars=2492, tokens=1682 (local BPE, vocab 500)
-[2] 언어별 비교
-    ko    chars= 10 tokens= 15 chars/token=0.67
-    en    chars= 26 tokens= 15 chars/token=1.73
-    emoji chars=  5 tokens=  9 chars/token=0.56
-[3] 비용 추정: 입력 = 말뭉치 전체, 출력 300 토큰, 요청 1,000 건 (로컬 토큰 수 기준 근사, 단가 작성 시점 2026-10)
-    claude-opus-5-5    $   12.73
-    claude-sonnet-5-5  $    6.36
-    claude-haiku-5-5   $    0.32
-[4] 청크 (max_tokens=200)
-    overlap=  0: 9 조각, 조각 토큰 합 1682 (원문 1682, 1.00배)
-    overlap= 50: 11 조각, 조각 토큰 합 2182 (원문 1682, 1.30배)
-    조각 0 끝: '인다.\n학습이 잘 되면 손실 값이 조금씩 줄어'
-    조각 1 앞: '\n작은 모델이라도 직접 학습해 보면 원리가 잘'
-[5] 컨텍스트 창 1,000 토큰, 예약 300 토큰
-    남긴 글자 622/2492, 토큰 698, 끝: '으로 비교해야 공정한 실험이 된다.\n'
-```
-
-**해석**
-- [2] 같은 15토큰에 영어는 26자, 한국어는 10자가 들어갑니다. 이 **작은** 토크나이저에서 한국어는 글자당 토큰이 영어의 약 2.6배(1.73 / 0.67)입니다. 어휘가 크고 다국어로 학습된 실제 모델 토크나이저에서는 차이가 줄어들 수 있으므로, 숫자는 **그 모델로 다시 재야** 합니다(5·6번 선택 스크립트).
-- [3] 같은 트래픽에 모델만 바꿔도 비용이 약 40배(12.73 / 0.32) 차이 납니다. 계산 확인: opus 1건 = 1,682 × 4 / 10⁶ + 300 × 20 / 10⁶ = $0.012728.
-- [4] 오버랩 50(step 150)이면 이론상 200/150 ≈ 1.33배, 실제 1.30배입니다(마지막 조각이 짧아서). 조각 0의 끝 문장이 조각 1 앞에 다시 들어가 문맥이 이어집니다.
-- [5] 예산 700토큰 중 698토큰을 썼습니다. 700번째 토큰 앞이 글자 중간이라 그 글자를 통째로 뺐기 때문입니다.
-- 선택 스크립트 5·6은 이 환경에서 API 키·인터넷이 없어 `건너뜀`으로 끝났습니다. **사용자 PC에서 실행 필요**(결과는 실행한 값만 기록).
-
-## 9. 자주 나는 오류
+## 6. 자주 나는 오류
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
@@ -198,28 +111,26 @@ python part1_ai_fundamentals/tokenizer/run_demo.py --impl solution
 | "마지막 조각이 직전 조각의 꼬리에 완전히 포함됨" | 마지막 토큰을 담은 뒤에도 반복을 계속함 | `end == len(offsets)`이면 멈춘다 |
 | 조각을 다시 세면 `max_tokens`보다 큼 | 토큰 수는 **원문 전체 인코딩** 기준. 조각만 따로 인코딩하면 경계 병합이 달라짐 | 임베딩 모델 한도에 딱 맞추지 말고 여유를 둔다 |
 | 비용이 0으로 나옴 | 모델 ID 오타 | 모르는 모델은 `KeyError` |
-| `count_with_claude.py`가 `건너뜀` | `.env`에 `ANTHROPIC_API_KEY` 없음 | `cp .env.example .env`(PowerShell: `Copy-Item .env.example .env`) 후 키 입력(커밋 금지, `.gitignore` 등록됨) |
 | PowerShell에서 한글이 깨짐 | 콘솔 인코딩 | `$env:PYTHONUTF8 = "1"` |
 
-## 10. 과제
+## 7. 과제
 
 1. `train_local_tokenizer`의 `vocab_size`를 300 / 500 / 1000으로 바꿔 [2]의 ko·en `chars/token`을 표로 기록하세요. 어휘가 커지면 어느 언어가 더 많이 좋아지나요?
-2. (API 키가 있으면) `count_with_claude.py`로 같은 문장의 Claude 토큰 수를 재고, 로컬 BPE와 비교하세요. 로컬 수치로 비용을 잡으면 몇 % 틀리나요?
+2. (API 키가 있으면) `client.messages.count_tokens`로 같은 문장의 Claude 토큰 수를 재고, 로컬 BPE와 비교하세요. 로컬 수치로 비용을 잡으면 몇 % 틀리나요?
 3. 하루 1만 건, 질문 50토큰 + 검색 청크 5개 × 300토큰 + 답 300토큰인 RAG 서비스의 월 비용을 세 모델로 추정하세요. 청크를 200토큰으로 줄이면?
 4. `fit_to_context`는 앞부분만 남깁니다. 뒷부분이 중요한 문서(예: 결론이 끝에 있는 보고서)라면 어떻게 바꾸겠습니까? 코드 대신 설계로 답해 보세요.
 
-## 11. 체크리스트
+## 8. 체크리스트
 
-- [ ] `IMPL=starter pytest part1_ai_fundamentals/tokenizer/tests` 가 모두 통과한다
 - [ ] 같은 글자 수라도 언어·토크나이저에 따라 토큰 수가 다른 이유를 설명할 수 있다
 - [ ] 입력·출력 단가로 요청 1건과 월 비용을 계산할 수 있다
 - [ ] 오버랩이 검색 품질과 저장 비용에 주는 영향을 말할 수 있다
 - [ ] 컨텍스트 창 = 입력 + 출력이라는 것과 출력 몫을 예약하는 이유를 안다
 - [ ] 실제 요금은 그 모델의 토큰 세기·`usage`로 확인해야 한다는 것을 안다
 
-## 12. 다음 단계 연결
+## 9. 다음 단계 연결
 
-- **P1-02 Embedding**: 청크를 벡터로 바꿔 의미 검색을 합니다. 임베딩 모델에도 입력 토큰 한도가 있어 TODO 4의 청크 크기가 그대로 쓰입니다.
+- **P1-02 Embedding**: 청크를 벡터로 바꿔 의미 검색을 합니다. 임베딩 모델에도 입력 토큰 한도가 있어 토큰 예산 기준 청크 크기가 그대로 쓰입니다.
 - **Part 2 P2-02/03**: Claude API의 토큰 세기·`usage`·프롬프트 캐싱으로 실제 비용을 측정합니다.
 - **Part 3 P3-02**: 청크 크기·오버랩을 바꿔 검색 품질과 비용을 수치로 비교합니다.
 - 원리를 더 파고 싶다면 선택 과제 [advanced/](./advanced/README.md) (BPE 직접 구현, P1-01A).

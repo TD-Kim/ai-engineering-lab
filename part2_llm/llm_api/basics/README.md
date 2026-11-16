@@ -3,11 +3,11 @@
 | 항목 | 값 |
 |---|---|
 | 실습 ID | P2-02 (메인) |
-| 주차 · 진행 순서 | W5 · P2-01B 다음 |
-| 예상 시간 | 3~4시간 |
-| 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p2_02_claude_api.py`, `run_demo.py`, 선택: `call_claude.py`(API 키 필요, 유료) |
 | 소속 | [Part 2 — LLM 활용 원리](../../README.md) · [llm_api](../README.md) |
-| 재사용 | [P2-01B](../../local_llm_serving/README.md)의 `Usage`·`ProviderError`·`log_usage`를 그대로 불러 씁니다(복사하지 않음) |
+
+> **최종 서비스에서의 위치:** Python AI 서버가 Claude를 부르는 **요청·응답 처리부**입니다. 응답 검사(거절·잘림·폴백), 구조화 출력(Part 4 엔티티·관계 추출, 그래프 적재), 스트리밍(SSE로 Spring Boot에 중계, Part 6 P6-02), 호출 전 비용 추정이 여기서 나옵니다.
+
+> 이 문서에 나오는 `함수·파일 이름`(예: `run_demo.py`)은 이전 실습 코드(커밋 `aa46d2f`)의 이름입니다. 그 코드는 지웠고 개념만 남겼습니다. 옛 코드가 필요하면 `git checkout aa46d2f`(복구 방법은 [루트 README](../../../README.md#지금-어디를-보면-되나-학습-방식)).
 
 > 방향: **개념은 깊게, 구현은 얕게.** 요청 본문(system·멀티턴), 응답 검사(stop_reason·블록·폴백), 구조화 출력, 스트리밍, 토큰 세기, 오류 분류를 "잘못 쓰면 무엇이 깨지는가"와 함께 익힙니다. 테스트와 데모는 가짜 SDK로 돌아가고, 실제 호출은 선택 스크립트입니다.
 
@@ -54,7 +54,7 @@
 | 스트리밍 | `client.beta.messages.stream(...)` → `text_stream` → `get_final_message()` | 스킬 `python/claude-api/streaming.md` |
 | 거절 | **HTTP 200 + `stop_reason: "refusal"`**, `stop_details.category`는 참고용(없을 수 있음) | 스킬 `shared/model-migration.md` refusal 절 |
 | 서버 측 폴백 | `fallbacks="default"` + `betas=["server-side-fallback-2026-07-01"]`, **기본으로 켬** | §4-3 |
-| `max_tokens` | 기본 16000(thinking 포함 출력 상한). 구조화 추출은 `call_claude.py`에서 4000 | 스킬 예시가 16000 사용, "max_tokens는 thinking + 답변 전체의 상한" |
+| `max_tokens` | 기본 16000(thinking 포함 출력 상한). 구조화 추출 예시는 4000 | 스킬 예시가 16000 사용, "max_tokens는 thinking + 답변 전체의 상한" |
 | 토큰 세기 | `client.messages.count_tokens(model, messages, system, output_config)` | 스킬 `shared/token-counting.md` (tiktoken 등은 Claude 토큰을 잘못 셈) |
 | 오류·재시도 | SDK가 연결 오류·408·409·429·5xx를 `max_retries`(기본 2)만큼 자동 재시도. 예외 계층은 설치된 anthropic 2.6.0에서 확인 | 스킬 README Retries·Error Handling |
 
@@ -76,14 +76,14 @@ SDK의 `messages.parse(output_format=Model)`는 받자마자 텍스트를 검증
 
 - **무엇인가:** 안전 분류기가 요청을 거절하면, API가 같은 호출 안에서 Anthropic이 권장하는 다른 모델로 다시 실행합니다(`"default"`는 거절 분류별로 대상 모델을 고른다).
 - **왜 기본으로 켜나:** 스킬 지침이 claude-opus-5-5에 대해 "Ship the opt-in from day one"(처음부터 켠다)입니다. 폴백이 없으면 거절된 요청은 그냥 멈춥니다. 무해한 요청도 분류기에 걸릴 수 있습니다.
-- **무엇은 하지 않나:** **정책 거절에만** 작동합니다. rate limit·과부하·서버 오류는 폴백하지 않고 그대로 돌려줍니다. 그건 TODO 6의 분류와 P2-01B의 공급자 폴백이 맡습니다.
+- **무엇은 하지 않나:** **정책 거절에만** 작동합니다. rate limit·과부하·서버 오류는 폴백하지 않고 그대로 돌려줍니다. 그건 오류 분류·재시도와 P2-01B의 공급자 폴백이 맡습니다.
 - **헤더 주의:** `"default"` 형식은 `server-side-fallback-2026-07-01`, 배열 형식(`[{"model": ...}]`)은 `server-side-fallback-2026-06-01`을 씁니다. 바꿔 쓰면 400입니다.
 - **사용할 수 없는 곳:** Batches API에서는 거부되고, Amazon Bedrock·Vertex AI·Microsoft Foundry에서는 쓸 수 없습니다(SDK 미들웨어가 대안). 그런 플랫폼에서는 `build_request(..., fallbacks=False)`로 끕니다.
 - **응답 읽기:** 폴백이 일어났는지는 `usage.iterations`의 `fallback_message`로 판단합니다. sticky routing으로 이어진 턴에는 `fallback` 블록이 없기 때문입니다. 답한 모델은 `message.model`입니다. 폴백 모델은 원래 모델의 thinking 블록을 읽지 못합니다.
 - **답이 나오던 중 거절되면 (폴백 켜짐):**
   - **스트리밍:** 이미 받은 부분(partial)은 **그대로 유지**됩니다. 경계에 `fallback` 블록이 생기고, **같은 스트림에서** 폴백 모델이 이어 씁니다. partial의 text 블록만 폴백 모델에 이어 쓰기 문맥으로 넘어갑니다. 그래서 `text_stream`을 이어 붙인 결과에는 거절된 모델이 쓴 앞부분과 폴백 모델이 쓴 뒷부분이 함께 들어 있습니다.
   - **비스트리밍:** 거절된 partial을 **빼고** 폴백 모델의 답만 돌려줍니다.
-  - **최종 `stop_reason`이 여전히 `refusal`이면** 폴백 모델까지 거절한 것입니다. 받은 부분을 정상 답으로 쓰면 안 됩니다. `call_claude.py`의 `report_stream`은 이때 "위에 찍힌 텍스트는 정상 답이 아닙니다"로 표시합니다.
+  - **최종 `stop_reason`이 여전히 `refusal`이면** 폴백 모델까지 거절한 것입니다. 받은 부분을 정상 답으로 쓰면 안 됩니다. 스트리밍으로 이미 화면에 찍은 텍스트라면 "위 텍스트는 정상 답이 아님"을 사용자에게 알려야 합니다.
   - 폴백 모델이 rate limit·과부하 상태면 폴백 시도를 하지 않고 거절을 그대로 돌려줍니다. 이때 `stop_details.recommended_model`이 다시 시도할 모델을 알려 줄 수 있습니다(없으면 `null`).
 - **과금:** 시도별 사용량은 `usage.iterations`에 있습니다(최상위 `usage`는 반환된 메시지를 만든 시도만). 스트림 중간 거절은 정상 요금이고, 폴백 시도는 폴백 모델 단가입니다. 출력 전 거절의 과금은 공식 문서 "How refusals are billed"를 확인하세요(https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback).
 - 이 절은 claude-api 스킬 `shared/model-migration.md`의 refusal·server-side `fallbacks` 절(Key semantics)로 확인했습니다(작성 시점 2026-11).
@@ -107,7 +107,7 @@ SDK의 `messages.parse(output_format=Model)`는 받자마자 텍스트를 검증
 | 시스템 프롬프트는 어떻게 쓰나? | 역할·규칙·금지·출력 형식처럼 **바뀌지 않는 것**만 둔다. 현재 시각·사용자 이름·검색 결과처럼 바뀌는 값은 messages 쪽에 둔다. 그래야 프롬프트 캐싱이 깨지지 않는다(P1-05·P2-03) |
 | 구조화 출력은 왜 쓰나? | "JSON으로 답해"라는 부탁만으로는 가끔 설명 문장이 섞이거나 괄호가 빠져 다음 단계가 멈춘다. 스키마를 강제하면 그래프 적재(Part 4) 같은 파이프라인이 안정적이다. 그래도 거절·잘림은 생기므로 검사 순서(§4-2)를 지킨다 |
 | 스트리밍은 언제? | 사람이 읽는 화면(채팅)과 긴 답·큰 `max_tokens`. 체감 대기가 줄고, 오랫동안 조용한 연결로 인한 타임아웃 위험이 준다. 배치 처리처럼 사람이 기다리지 않으면 비스트리밍도 된다 |
-| 타임아웃·재시도는? | SDK 기본 타임아웃은 10분이라 서비스에 맞게 줄인다(이 실습 60초). SDK가 일시 오류를 `max_retries`만큼 재시도한 **뒤**에 오는 예외를 분류해 안내·공급자 폴백(P2-01B)·즉시 실패를 고른다(TODO 6) |
+| 타임아웃·재시도는? | SDK 기본 타임아웃은 10분이라 서비스에 맞게 줄인다(이 실습 60초). SDK가 일시 오류를 `max_retries`만큼 재시도한 **뒤**에 오는 예외를 분류해 안내·공급자 폴백(P2-01B)·즉시 실패를 고른다 |
 | 로그에는 무엇을? | 모델·토큰·지연·TTFT·stop_reason·폴백 여부(`Usage` + `fell_back`). **프롬프트·답 원문은 기본적으로 남기지 않는다**(개인정보·영업비밀). 필요하면 마스킹·샘플링·보존 기간을 정한다 |
 | 비용 상한은? | `max_tokens`가 한 요청의 출력 비용 상한이다. 데모 [5]에서 예상 $0.0108에 비해 상한은 $0.3248(약 30배). 작업에 맞게 `max_tokens`를 줄이고, 요청 전 `count_tokens`로 큰 입력을 막는다 |
 | 거절을 어떻게 다루나? | HTTP 200이라도 `stop_reason == "refusal"`이면 실패로 처리한다. 서버 측 폴백을 켜고, 그래도 거절이면 사용자에게 정중히 안내한다. category는 참고로만 기록한다 |
@@ -121,100 +121,7 @@ SDK의 `messages.parse(output_format=Model)`는 받자마자 텍스트를 검증
 
 단가: claude-opus-5-5 입력 $4·출력 $20 / 100만 토큰(작성 시점 2026-10, P1-01 표 / claude-api 스킬 모델표 2026-11과 일치). 사용 전 [공식 가격 페이지](https://platform.claude.com/docs/en/about-claude/pricing)에서 재확인하세요.
 
-## 6. 실행법
-
-저장소 루트에서 실행합니다.
-
-**Windows PowerShell**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:PYTHONUTF8 = "1"
-pip install -r requirements/part2.txt
-
-# 1) 남은 TODO 확인
-python part2_llm/llm_api/basics/starter.py
-
-# 2) 직접 구현 검사 (TODO 가 남은 테스트는 skip)
-$env:IMPL = "starter"; pytest part2_llm/llm_api/basics/tests; Remove-Item Env:IMPL
-
-# 3) 정답 코드 검사
-pytest part2_llm/llm_api/basics/tests
-
-# 4) 데모 (가짜 SDK, 키 불필요)
-python part2_llm/llm_api/basics/run_demo.py --impl starter
-
-# 5) (선택) 실제 호출 — 유료. .env 에 ANTHROPIC_API_KEY (커밋 금지)
-Copy-Item .env.example .env   # 처음 한 번
-python part2_llm/llm_api/basics/call_claude.py
-```
-
-**bash (Linux/macOS)**
-
-```bash
-source .venv/bin/activate
-IMPL=starter pytest part2_llm/llm_api/basics/tests
-pytest part2_llm/llm_api/basics/tests
-python part2_llm/llm_api/basics/run_demo.py
-python part2_llm/llm_api/basics/call_claude.py      # 선택, 유료
-```
-
-- 테스트는 키·네트워크가 필요 없습니다. 응답은 가짜 Message, SDK는 가짜 객체, 시계는 가짜 시계입니다. 스레드·대기 반복이 없습니다.
-- `IMPL=starter`에서도 제공 코드만 검사하는 테스트 4개(`to_usage` + P2-01B `log_usage` 연결, `call_claude.report_stream` 3개)는 통과합니다. 나머지 13개가 TODO 미구현으로 skip입니다.
-- 오류 분류 테스트는 설치된 `anthropic`·`httpx2`로 실제 예외 객체를 만들어 검사합니다(네트워크 없음).
-
-## 7. TODO 목록
-
-| TODO | 함수 | 내용 |
-|---|---|---|
-| 1 | `build_messages`, `build_request` | 역할 교대·마지막 user 검사, `model`·`max_tokens`·`messages`·`output_config.effort`·(`system`)·(`betas`+`fallbacks="default"`) |
-| 2 | `read_response`, `ensure_complete` | text 블록만, `ok`·`served_by`·`fell_back`, refusal → `RefusalError`, max_tokens → `TruncatedError` |
-| 3 | `with_json_schema`, `parse_structured` | `output_config.format`(transform_schema) 합치기, 거절·잘림 먼저 → Pydantic 검증 → `StructuredOutputError` |
-| 4 | `consume_stream` | `with` 안에서 `text_stream` 소비·TTFT·`get_final_message()` |
-| 5 | `estimate_cost` | `count_tokens`(system·output_config 포함, betas 제외) → 예상·최대 비용 |
-| 6 (선택) | `classify_error` | RateLimit → InternalServer → 408/409(일시 오류) → APIStatus → APIConnection 순서, retry-after |
-
-제공 코드: `RefusalError`·`TruncatedError`·`StructuredOutputError`, `Triple`·`Extraction`(Pydantic), `ResponseView`·`StreamOutcome`·`CostEstimate`·`ErrorDecision`, `to_usage`, P2-01B에서 불러온 `Usage`·`ProviderError`·`log_usage`.
-
-## 8. 예상 결과
-
-아래는 클라우드 작업 환경(Python 3.12.13, anthropic 2.6.0)에서 `run_demo.py --impl solution`을 **실제로 실행한 출력**입니다. 다만 **가짜 SDK가 미리 정해 둔 응답·토큰 수(입력 1,200 등)·가짜 시계**를 쓴 것이라, Claude의 실제 답·토큰 수·시간이 아닙니다(형식 예시). 실제 호출 결과는 `call_claude.py`로 사용자 PC에서 얻어 experiments 기록에 적으세요. 이 환경에서는 키가 없어 `건너뜀: ANTHROPIC_API_KEY 가 없습니다`로 끝났습니다.
-
-```
-[1] 요청 본문 (TODO 1) — 멀티턴, system, effort 명시, 서버 측 폴백
-    키: ['betas', 'fallbacks', 'max_tokens', 'messages', 'model', 'output_config', 'system']
-    model=claude-opus-5-5 max_tokens=16000 output_config={'effort': 'medium'} fallbacks='default' betas=['server-side-fallback-2026-07-01']
-    마지막 메시지 역할: user (prefill 없음)
-[2] 구조화 출력 (TODO 3) — 가짜 SDK 의 미리 정한 응답
-    스키마 required: ['triples'] additionalProperties: False
-    (세종대왕, 창제했다, 훈민정음)
-    (집현전 학자들, 도왔다, 훈민정음 창제)
-[3] 스트리밍 (TODO 4) — 가짜 스트림·가짜 시계(초)
-    text='훈민정음은 백성을 가르치는 바른 소리입니다.'  TTFT 1200 ms (thinking 포함)  전체 1250 ms  stop_reason=end_turn
-[4] 응답 검사 (TODO 2) — 거절·잘림·폴백
-    거절: RefusalError — refused (category=None)
-    잘림: TruncatedError — response truncated at max_tokens
-    폴백: fell_back=True, served_by=claude-opus-5, 건너뛴 블록 1개
-[5] 호출 전 비용 추정 (TODO 5) — 가짜 count_tokens(입력 1,200 토큰으로 고정)
-    입력 1200 토큰, 예상(출력 300) $0.0108, 최대(출력 16000) $0.3248  (claude-opus-5-5 $4/$20, 작성 시점 2026-10)
-[6] (선택) 오류 분류 (TODO 6)
-    RateLimitError       → ErrorDecision(kind='rate_limit', retry=True, retry_after_s=7.0)
-    OverloadedError      → ErrorDecision(kind='server', retry=True, retry_after_s=None)
-    BadRequestError      → ErrorDecision(kind='client', retry=False, retry_after_s=None)
-    APITimeoutError      → ErrorDecision(kind='connection', retry=True, retry_after_s=None)
-[7] 사용량 기록 — P2-01B log_usage 재사용: part2_llm/llm_api/basics/outputs/usage.csv
-    claude,claude-opus-5-5,310,95,1250.0,1200.0,end_turn
-```
-
-**해석**
-- [1] 요청에는 샘플링 파라미터·thinking 끄기·강제 tool_choice가 없습니다. 마지막 메시지는 user입니다.
-- [2] 스키마가 `additionalProperties: false`로 바뀌어 모델이 정의되지 않은 필드를 만들지 못합니다. 결과는 Pydantic 객체라 다음 단계에서 `t.subject`처럼 바로 씁니다.
-- [3] 가짜 시계에서 첫 텍스트가 1.2초에 왔다면, 실제 Claude에서는 그 안에 thinking 시간이 들어 있습니다(§4-4).
-- [4] 거절과 잘림은 예외로 분리됩니다. 폴백은 블록이 아니라 `usage.iterations`로 판단합니다.
-- [5] 최대 비용이 예상의 약 30배입니다. `max_tokens`를 작업에 맞게 정하는 것이 비용 통제입니다.
-- [6] `RateLimitError`는 `APIStatusError`의 하위 클래스라, 상위 클래스를 먼저 검사하면 "429 + 7초 뒤"라는 정보를 잃습니다.
-
-## 9. 자주 나는 오류
+## 6. 자주 나는 오류
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
@@ -229,23 +136,22 @@ python part2_llm/llm_api/basics/call_claude.py      # 선택, 유료
 | 429만 오면 서비스가 멈춤 | 재시도 정책 없음 | SDK `max_retries` + `classify_error` → 안내·공급자 폴백 |
 | 토큰 수가 추정과 다름 | tiktoken 등 다른 토크나이저 | `count_tokens`에 실제 모델 ID |
 
-## 10. 과제
+## 7. 과제
 
-1. (키가 있으면) `call_claude.py`를 실행해 triple 추출 결과·usage·stop_reason·지연을 experiments 표에 기록하세요. `count_tokens` 추정과 실제 `usage.input_tokens`를 비교하세요.
+1. (키가 있으면) 구조화 출력으로 triple 추출을 호출해 결과·usage·stop_reason·지연을 표로 기록하세요. `count_tokens` 추정과 실제 `usage.input_tokens`를 비교하세요.
 2. (키가 있으면) 같은 질문을 effort `low`/`medium`/`high`로 보내 TTFT·출력 토큰·답의 질을 비교하세요(§4-4). P2-01B Ollama 결과와 비교할 때 무엇을 같은 조건으로 맞췄는지 적으세요.
 3. `Extraction` 스키마에 `confidence: float`(0~1) 필드를 추가하고 테스트를 고쳐 보세요. 스키마가 바뀌면 파이프라인의 어디가 영향을 받나요?
 4. 사내 상담 봇의 시스템 프롬프트를 작성해 보세요. 캐싱을 깨지 않으려면 무엇을 system에 두고 무엇을 messages에 두어야 하나요?
 
-## 11. 체크리스트
+## 8. 체크리스트
 
-- [ ] `IMPL=starter pytest part2_llm/llm_api/basics/tests` 가 모두 통과한다
 - [ ] system과 messages의 차이, 멀티턴을 매번 다시 보내는 이유를 설명할 수 있다
 - [ ] 응답을 읽는 순서(stop_reason → text 블록 → 검증 → 폴백 여부)를 안다
 - [ ] 거절이 HTTP 200으로 온다는 것과 서버 측 폴백이 다루는/다루지 않는 오류를 안다
 - [ ] Claude의 TTFT에 thinking이 포함되는 이유와 로컬 모델과의 공정 비교 방법을 말할 수 있다
 - [ ] `max_tokens`가 비용 상한이라는 것과 `count_tokens`로 호출 전 비용을 계산하는 법을 안다
 
-## 12. 다음 단계 연결
+## 9. 다음 단계 연결
 
 - **P2-03 비용·지연**: 프롬프트 캐싱(`cache_control`, `usage.cache_read_input_tokens`)·배치·사용량 기록으로 이 실습의 비용을 줄입니다.
 - **P2-04**: 프롬프트 vs RAG vs Fine-tuning 선택 기준.

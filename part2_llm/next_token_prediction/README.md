@@ -3,10 +3,11 @@
 | 항목 | 값 |
 |---|---|
 | 실습 ID | P2-01 (메인) |
-| 주차 · 진행 순서 | W5 · Part 2 첫 실습 |
-| 예상 시간 | 2~3시간 |
-| 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p2_01_next_token.py`, `run_demo.py`, 선택: `run_qwen.py`(모델 다운로드 필요) |
 | 소속 | [Part 2 — LLM 활용 원리](../README.md) |
+
+> **최종 서비스에서의 위치:** RAG 답변 생성 단계의 `temperature`·`top_p` 같은 설정이 일관성·환각에 주는 영향을 이해하는 바탕입니다(Part 3 생성, Part 6 AI 서버의 LLM 호출 설정). Claude 최신 모델은 샘플링 파라미터를 받지 않지만, 로컬 모델 비교(P2-01B)에서는 그대로 쓰입니다.
+
+> 이 문서에 나오는 `함수·파일 이름`(예: `run_demo.py`)은 이전 실습 코드(커밋 `aa46d2f`)의 이름입니다. 그 코드는 지웠고 개념만 남겼습니다. 옛 코드가 필요하면 `git checkout aa46d2f`(복구 방법은 [루트 README](../../README.md#지금-어디를-보면-되나-학습-방식)).
 
 > 방향: **개념은 깊게, 구현은 얕게.** 다음 토큰 예측·temperature·top-k·top-p·greedy·컨텍스트 창을 작은 숫자와 작은 모델로 확인합니다. 실제 LLM(Qwen2.5-0.5B, Apache-2.0)은 같은 함수로 돌려 보는 선택 스크립트입니다.
 
@@ -78,7 +79,7 @@ T가 작으면 1등에 몰리고(엔트로피 0.64비트), 크면 고르게 퍼�
 
 ### 4-4. 이 실습의 모델: bigram LM
 
-`BigramLM`은 "직전 단어 → 다음 단어"를 세어 logits = log(횟수 + alpha)로 둡니다. 직전 단어 **하나**만 봅니다. 실제 LLM은 컨텍스트 창 안의 모든 토큰을 어텐션(P1-05)으로 보고 점수를 냅니다. 하지만 인터페이스는 같습니다. **모델 = 토큰 목록 → 다음 토큰 점수 함수**. 그래서 같은 `generate`가 Qwen에서도 그대로 동작합니다(`run_qwen.py`).
+`BigramLM`은 "직전 단어 → 다음 단어"를 세어 logits = log(횟수 + alpha)로 둡니다. 직전 단어 **하나**만 봅니다. 실제 LLM은 컨텍스트 창 안의 모든 토큰을 어텐션(P1-05)으로 보고 점수를 냅니다. 하지만 인터페이스는 같습니다. **모델 = 토큰 목록 → 다음 토큰 점수 함수**. 그래서 같은 생성 함수가 Qwen에서도 그대로 동작합니다(`run_qwen.py`).
 
 ## 서비스 관점
 
@@ -101,96 +102,7 @@ T가 작으면 1등에 몰리고(엔트로피 0.64비트), 크면 고르게 퍼�
 - bigram LM: z_{다음} = log(count(직전 → 다음) + α)
 - 생성: x_{t+1} ~ p(· | x_{t−W+1..t}) (W = 컨텍스트 창), 최대 `max_new_tokens`번
 
-## 6. 실행법
-
-저장소 루트에서 실행합니다.
-
-**Windows PowerShell**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:PYTHONUTF8 = "1"
-
-# 1) 남은 TODO 확인
-python part2_llm/next_token_prediction/starter.py
-
-# 2) 직접 구현 검사 (TODO 가 남은 테스트는 skip)
-$env:IMPL = "starter"; pytest part2_llm/next_token_prediction/tests; Remove-Item Env:IMPL
-
-# 3) 정답 코드 검사
-pytest part2_llm/next_token_prediction/tests
-
-# 4) 데모 (bigram LM, 다운로드·API 키 불필요)
-python part2_llm/next_token_prediction/run_demo.py --impl starter
-
-# 5) (선택) 실제 LLM — transformers 설치·모델 다운로드 필요, RTX 3070 에서 fp16
-pip install -r requirements/part2.txt
-python part2_llm/next_token_prediction/run_qwen.py
-```
-
-**bash (Linux/macOS)**
-
-```bash
-source .venv/bin/activate
-python part2_llm/next_token_prediction/starter.py
-IMPL=starter pytest part2_llm/next_token_prediction/tests
-pytest part2_llm/next_token_prediction/tests
-python part2_llm/next_token_prediction/run_demo.py --impl solution
-python part2_llm/next_token_prediction/run_qwen.py     # 선택
-```
-
-- 테스트는 다운로드·API 호출이 없습니다. 난수는 `torch.Generator` 시드로 고정해 결정적입니다. 생성은 `max_new_tokens`로 반드시 끝납니다.
-- `part2_llm/conftest.py`가 Part 1과 같은 규약(`IMPL`, TODO 미구현 → skip)을 제공합니다.
-
-## 7. TODO 목록
-
-| TODO | 함수 | 내용 |
-|---|---|---|
-| 1 | `softmax_with_temperature` | `softmax(logits / T)`, T ≤ 0이면 `ValueError` |
-| 2 | `top_k_filter` | k번째 점수보다 작은 칸을 −∞(동점 남김), k ≥ V면 그대로 |
-| 3 | `top_p_filter` | 정렬 → "더하기 전 누적 < p"만 남김 → 원래 위치로(scatter) |
-| 4 | `sample_next` | T=0이면 argmax, 아니면 ÷T → top-k → top-p → softmax → `multinomial` |
-| 5 | `generate` | `for` 최대 `max_new_tokens`번, 마지막 `context_window`개만 모델에, eos에서 멈춤 |
-
-제공 코드: `BigramLM`(작은 언어 모델), `load_bigram_lm`(Part 1 말뭉치로 생성), `entropy_bits`(엔트로피).
-
-## 8. 예상 결과
-
-아래는 클라우드 작업 환경(CPU, Python 3.12.13, torch 2.15.0)에서 `run_demo.py --impl solution`을 **실제로 실행한 출력**입니다(bigram LM). `run_qwen.py`는 이 환경에 transformers와 모델이 없어 `건너뜀: transformers 가 없습니다`로 끝났습니다. Qwen 결과는 **사용자 PC에서 실행 필요**하며, 실행한 값만 기록하세요.
-
-```
-[1] temperature: 후보 [mat, log, sun] 의 점수 [2, 1, 0]
-    T=0.5: mat 0.867, log 0.117, sun 0.016   엔트로피 0.64 비트
-    T=1.0: mat 0.665, log 0.245, sun 0.090   엔트로피 1.20 비트
-    T=2.0: mat 0.506, log 0.307, sun 0.186   엔트로피 1.47 비트
-[2] top-k / top-p: 확률 [0.50, 0.30, 0.15, 0.05] 의 후보 a, b, c, d
-    top-k k=2  : a 0.625, b 0.375, c 0.000, d 0.000
-    top-p p=0.7: a 0.625, b 0.375, c 0.000, d 0.000
-    top-p p=0.9: a 0.526, b 0.316, c 0.158, d 0.000
-    1 등이 0.95 일 때 top-p p=0.9: a 1.000, b 0.000, c 0.000, d 0.000  (후보 1 개)
-    1 등이 0.95 일 때 top-k k=2  : a 0.969, b 0.031, c 0.000, d 0.000  (후보 2 개 고정)
-[3] bigram LM (어휘 346개, alpha=0.001): 'the cat' 다음 단어 확률 상위 3
-    likes 0.427, sat 0.427, alone 0.000
-[4] 생성 12 토큰, 컨텍스트 창 4: 'the cat ...'
-    greedy (T=0)        : likes the same data and the same data and the same data
-    T=1, top-p 0.9, s=0: sat on weekends i stay home and read some code <eos>
-    T=1, top-p 0.9, s=1: likes the slower the learning rate the loss goes down check the
-    T=1, top-p 0.9, s=2: sat on rainy days i drink coffee every morning and the model
-    같은 시드 0 다시     : sat on weekends i stay home and read some code <eos>  (재현됨)
-    (비교) alpha=0.1, s=0  : home different 논문을 원리가 sat scores similar context cannot does 모일 안정시킨다
-           'the cat' 다음 엔트로피 alpha=0.001 2.69 비트 vs alpha=0.1 8.31 비트
-[5] 컨텍스트 창: 모델이 실제로 받은 입력 길이 (프롬프트 6 토큰, 창 4, 3 토큰 생성)
-    단계별 입력 길이 = [4, 4, 4]  (창보다 긴 앞부분은 잘려서 모델이 보지 못함)
-```
-
-**해석**
-- [2] 같은 p=0.9라도 분포가 뾰족하면 후보 1개, 퍼져 있으면 3개입니다. top-k는 상황과 관계없이 2개입니다.
-- [3] `cat` 다음은 `likes`와 `sat`이 0.427로 동점입니다(말뭉치에 각 1번). greedy의 argmax는 동점이면 앞 번호(사전순으로 앞선 `likes`)를 고릅니다.
-- [4] **greedy는 "the same data and the same data…"를 되풀이합니다.** bigram LM은 직전 단어만 보므로 `and → the → same → data → and`의 고리에 갇힙니다. 큰 LLM도 greedy에서 되풀이가 생기기 쉽다는 것이 nucleus sampling 논문의 동기입니다(Holtzman et al., 2020). sampling은 시드마다 다른 문장을 만들고, 같은 시드는 같은 문장을 재현합니다.
-- [4] (비교) 스무딩 `alpha`를 0.1로 키우면 말뭉치에서 한 번도 안 나온 수백 개의 조합에 확률이 퍼져(엔트로피 2.69 → 8.31비트) 엉뚱한 단어가 뽑힙니다. "모델이 확신이 없으면 sampling은 잡음을 뽑는다"는 예입니다.
-- [5] 프롬프트가 6토큰이어도 모델은 마지막 4토큰만 받았습니다.
-
-## 9. 자주 나는 오류
+## 6. 자주 나는 오류
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
@@ -202,23 +114,22 @@ python part2_llm/next_token_prediction/run_qwen.py     # 선택
 | 생성이 끝나지 않음 | `while`로 eos만 기다림 | `for _ in range(max_new_tokens)` |
 | `KeyError: 어휘에 없는 단어(OOV)` | bigram LM 어휘에 없는 단어 | 말뭉치에 있는 단어로 프롬프트 작성(실제 LLM은 서브워드라 OOV가 없다 — P1-01) |
 
-## 10. 과제
+## 7. 과제
 
 1. [4]의 sampling을 T=0.3 / 1.0 / 1.5로 바꿔 각각 시드 5개의 문장을 비교하세요. 되풀이·엉뚱함이 어떻게 변하나요?
 2. greedy의 되풀이를 줄이는 방법을 하나 생각해 구현해 보세요(예: 이미 나온 토큰의 점수를 조금 낮추기). 무엇을 잃나요?
-3. (모델을 받을 수 있으면) `run_qwen.py`로 `The capital of France is` 다음 토큰 상위 5와 T별 엔트로피를 기록하세요. bigram LM과 엔트로피를 비교하고, 프롬프트 64/256/1024토큰의 시간을 기록하세요.
+3. (모델을 받을 수 있으면) transformers로 Qwen2.5-0.5B 등을 불러 `The capital of France is` 다음 토큰 상위 5와 T별 엔트로피를 기록하세요. bigram LM과 엔트로피를 비교하고, 프롬프트 64/256/1024토큰의 시간을 기록하세요.
 4. 고객 문의를 "환불/배송/기타"로 분류하는 기능과 마케팅 문구 5개를 제안하는 기능에 각각 어떤 다양성 설정이 맞는지, 그리고 Claude API에서는 그것을 무엇으로 조절할지 적어 보세요.
 
-## 11. 체크리스트
+## 8. 체크리스트
 
-- [ ] `IMPL=starter pytest part2_llm/next_token_prediction/tests` 가 모두 통과한다
 - [ ] 점수 [2, 1, 0]의 T=1 확률을 손으로 계산할 수 있다
 - [ ] top-k와 top-p의 차이를 "후보 수"로 설명할 수 있다
 - [ ] greedy의 장단점(재현성 vs 되풀이)을 안다
 - [ ] 생성 루프에 최대 길이가 반드시 필요한 이유를 비용과 함께 설명할 수 있다
 - [ ] 컨텍스트 창을 넘는 내용이 잘린다는 것을 안다
 
-## 12. 다음 단계 연결
+## 9. 다음 단계 연결
 
 - **P2-02 Claude API 기초**: 토큰 세기, 메시지·시스템 프롬프트 구조, 구조화 출력, 스트리밍(첫 토큰 지연을 체감).
 - **P2-03 비용·지연**: 프롬프트 캐싱(P1-05 KV 캐시의 요청 간 재사용), 배치, 토큰 사용량 기록.

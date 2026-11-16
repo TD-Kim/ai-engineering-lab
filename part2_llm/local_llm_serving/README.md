@@ -3,14 +3,14 @@
 | 항목 | 값 |
 |---|---|
 | 실습 ID | P2-01B (메인) |
-| 주차 · 진행 순서 | W5(–6) · P2-01 다음, P2-02 전 |
-| 예상 시간 | 3~4시간 (+ 사용자 PC 측정 1시간) |
-| 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p2_01b_local_llm.py`, `run_demo.py`, 선택: `measure_local_models.py`(사용자 PC, Ollama·GPU 필요) |
 | 소속 | [Part 2 — LLM 활용 원리](../README.md) |
-| 순서를 바꿔도 되나 | 됩니다. P1-02(임베딩) 없이 할 수 있고 학습자는 이 실습을 P1-02보다 먼저 합니다(2026-11-16). 조건: §2의 개념 선수지식(P2-01·P1-05)을 먼저 읽기, Part 3 전에는 P1-02를 끝내기. 의존 표: [루트 README](../../README.md#지금-어디를-보면-되나-학습-순서진행-안내) |
+
+> **최종 서비스에서의 위치:** Python AI 서버의 **LLM 어댑터**(공통 인터페이스로 Claude·로컬·가짜를 설정만 바꿔 교체, 타임아웃·폴백)입니다. Part 4 엔티티·관계 추출의 Claude vs 로컬 LLM 비교, Part 6 AI 서버(P6-01~03)에서 그대로 재사용합니다.
+
+> 이 문서에 나오는 `함수·파일 이름`(예: `run_demo.py`)은 이전 실습 코드(커밋 `aa46d2f`)의 이름입니다. 그 코드는 지웠고 개념만 남겼습니다. 옛 코드가 필요하면 `git checkout aa46d2f`(복구 방법은 [루트 README](../../README.md#지금-어디를-보면-되나-학습-방식)).
 
 > 방향: **개념은 깊게, 구현은 얕게.** 로컬 LLM 서버(Ollama)를 HTTP API처럼 부르고, Claude·로컬·가짜 공급자를 **같은 인터페이스**로 설정만 바꿔 교체합니다. RTX 3070에서의 속도·메모리는 사용자 PC에서 직접 잽니다.
-> transformers로 모델을 직접 불러오는 방법은 [P2-01 `run_qwen.py`](../next_token_prediction/run_qwen.py)에 있습니다(여기서는 서버 방식만).
+> transformers로 모델을 직접 불러오는 방법은 이전 실습 코드(커밋 `aa46d2f`: `part2_llm/next_token_prediction/run_qwen.py`)에 있었고, 여기서는 서버 방식만 다룹니다.
 > 이 실습의 `LLMClient` 인터페이스는 Part 4 엔티티·관계 추출의 로컬 LLM 비교와 Part 6 AI 서버(공급자 교체·타임아웃·폴백)에서 재사용합니다.
 
 ## 1. 목표
@@ -105,7 +105,7 @@ Claude SDK는 연결 오류·429·5xx를 `max_retries`(이 실습은 2)만큼 **
 2. 실측 토큰/초가 서비스 요구(예: 사람이 읽는 속도보다 빠른가)를 넘는가.
 3. 다른 프로그램(브라우저·IDE)이 쓰는 VRAM과 동시 요청·긴 컨텍스트의 KV 캐시 여유가 남는가.
 
-Ollama 라이브러리 태그의 기본 양자화 수준은 작성 환경에서 확인하지 못했습니다(미확인). `measure_local_models.py`가 `/api/ps`의 `quantization_level`로 실제 값을 기록합니다.
+Ollama 라이브러리 태그의 기본 양자화 수준은 작성 환경에서 확인하지 못했습니다(미확인). 직접 측정할 때는 Ollama `/api/ps`의 `quantization_level`로 실제 값을 확인하세요.
 
 ### 4-4. 모델 라이선스
 
@@ -135,116 +135,7 @@ Ollama 라이브러리 태그의 기본 양자화 수준은 작성 환경에서 
 - 로컬 출력 100만 토큰 비용 = W × h / 1000 × (kWh 단가) + (시간당 장비 감가) × h,  h = 10⁶ / 토큰/초 / 3600
 - 가중치 메모리 ≈ 파라미터 수 × 파라미터당 바이트 (fp16 = 2, 4비트 ≈ 0.5)
 
-## 6. 실행법
-
-저장소 루트에서 실행합니다.
-
-**Windows PowerShell — 실습(서버·키 불필요)**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:PYTHONUTF8 = "1"
-
-# 1) 남은 TODO 확인
-python part2_llm/local_llm_serving/starter.py
-
-# 2) 직접 구현 검사 (TODO 가 남은 테스트는 skip)
-$env:IMPL = "starter"; pytest part2_llm/local_llm_serving/tests; Remove-Item Env:IMPL
-
-# 3) 정답 코드 검사
-pytest part2_llm/local_llm_serving/tests
-
-# 4) 데모 (가짜 공급자, 네트워크 없음)
-python part2_llm/local_llm_serving/run_demo.py --impl starter
-```
-
-**Windows PowerShell — 사용자 PC에서 실제 로컬 서버(선택)**
-
-```powershell
-# 1) Ollama 설치 (공식 README 의 Windows 명령, 2026-11-13 확인. 설치 파일: https://ollama.com/download/OllamaSetup.exe)
-irm https://ollama.com/install.ps1 | iex
-ollama --version
-
-# 2) 모델 받기 (태그 이름은 https://ollama.com/library/qwen2.5 에서 확인 — 작성 환경 접속 불가로 미확인)
-ollama pull qwen2.5:0.5b
-ollama pull qwen2.5:1.5b
-ollama pull qwen2.5:3b          # 비상업 라이선스: 학습·측정용만
-
-# 3) 데모를 실제 Ollama 로
-$env:LLM_PROVIDER = "ollama"; $env:OLLAMA_MODEL = "qwen2.5:0.5b"
-python part2_llm/local_llm_serving/run_demo.py
-ollama ps                        # PROCESSOR 가 100% GPU 인지 확인
-
-# 4) 크기별 측정 → part2_llm/local_llm_serving/outputs/local_models.csv
-python part2_llm/local_llm_serving/measure_local_models.py qwen2.5:0.5b qwen2.5:1.5b qwen2.5:3b
-Remove-Item Env:LLM_PROVIDER; Remove-Item Env:OLLAMA_MODEL
-```
-
-**bash (Linux/macOS)**
-
-```bash
-source .venv/bin/activate
-IMPL=starter pytest part2_llm/local_llm_serving/tests
-pytest part2_llm/local_llm_serving/tests
-python part2_llm/local_llm_serving/run_demo.py
-LLM_PROVIDER=ollama OLLAMA_MODEL=qwen2.5:0.5b python part2_llm/local_llm_serving/run_demo.py   # 선택
-```
-
-- 설정은 `.env`에도 둘 수 있습니다(`.env.example`의 `LLM_PROVIDER`, `OLLAMA_MODEL`, `OLLAMA_BASE_URL`). Claude는 `LLM_PROVIDER=claude`와 `ANTHROPIC_API_KEY`가 필요합니다(유료).
-- 클라이언트 주소는 `OLLAMA_BASE_URL`입니다. `OLLAMA_HOST`는 Ollama **서버**가 바인드할 주소(예: `0.0.0.0:11434`)라 이름을 나눴습니다(Ollama FAQ, 2026-11-13 확인).
-- 테스트는 네트워크·서버·키가 필요 없습니다. Ollama 전송은 가짜 함수, Claude는 가짜 SDK 객체, 시계는 가짜 시계입니다. 서버를 띄우는 스레드나 기다리는 반복이 없습니다.
-- `IMPL=starter`에서도 **제공 코드만 검사하는 테스트 5개**(전송 오류 매핑, Claude 클라이언트 3개, nvidia-smi 파싱)는 통과합니다. 나머지 13개가 TODO 미구현으로 skip입니다.
-
-## 7. TODO 목록
-
-| TODO | 함수 | 내용 |
-|---|---|---|
-| 1 | `build_chat_payload`, `parse_chat_response` | 요청 본문(`stream` 명시, `options.num_predict`), 응답 → (text, 입력 토큰, 출력 토큰), 빠진 필드는 기본값 |
-| 2 | `parse_chat_stream` | 줄 JSON 이어 붙이기, 빈 줄 건너뛰기, TTFT·전체 시간·토큰/초(서버 값 우선) |
-| 3 | `make_client` | `LLM_PROVIDER`(기본 fake) → Fake/Ollama/Claude, Claude는 키를 먼저 확인, 모르는 이름은 `ValueError` |
-| 4 | `generate_with_fallback` | `ProviderError`만 잡고 다음 공급자, 실패 기록, 모두 실패 시 `ProviderError` |
-| 5 | `log_usage` | CSV 덧붙이기, 머리글은 처음 한 번, `None`은 빈 칸 |
-| 6 (선택) | `api_cost_per_mtok`, `local_cost_per_mtok` | 입출력 가중 단가, 로컬 전기료 + 장비 감가 |
-
-제공 코드: `Usage`, `ProviderError`, `http_post_lines`(urllib, 오류 → `ProviderError` 매핑), `FakeClient`, `OllamaClient`(TODO 1·2 사용), `ClaudeClient`(Anthropic SDK 스트리밍), `parse_nvidia_smi_memory`.
-
-`ClaudeClient`는 claude-api 스킬로 현재 SDK 형태를 확인해 작성했습니다(작성 시점 2026-11).
-- 호출 형태: `client.messages.stream(model, max_tokens, messages)` → `text_stream` → `get_final_message()`.
-- 모델은 `LLM_MODEL`로 바꾸며, 기본값은 `claude-opus-5-5`입니다.
-- 샘플링 파라미터·prefill·강제 `tool_choice`는 쓰지 않습니다. 테스트가 호출 인자를 정확히 검사합니다.
-- 일시 장애만 `ProviderError`로 바꿉니다(`APIConnectionError`·`RateLimitError`·`InternalServerError` 계열). `APITimeoutError`와 과부하(`OverloadedError`)가 이 계열에 포함되는 것은 설치된 anthropic 2.6.0에서 확인했습니다.
-
-## 8. 예상 결과
-
-아래는 클라우드 작업 환경(Python 3.12.13)에서 `run_demo.py --impl solution`을 **실제로 실행한 출력**입니다. 공급자는 가짜(`LLM_PROVIDER=fake`)입니다. **[2]는 Ollama 문서의 응답 예시 숫자로 만든 예시 데이터와 가짜 시계로 계산한 값**이고, **[6]은 모두 가정값**입니다. 둘 다 측정값이 아닙니다. 실제 Ollama·GPU 결과는 사용자 PC에서 측정해야 합니다(experiments 기록의 빈 표).
-
-```
-[1] Ollama /api/chat 요청 본문 (TODO 1)
-    {"model": "qwen2.5:0.5b", "messages": [{"role": "user", "content": "RAG 를 한 문장으로"}], "stream": true, "options": {"num_predict": 128}}
-[2] 스트림 파싱 (TODO 2) — 예시 데이터: 조각 3개 + 마지막 줄(Ollama 문서 예시 숫자 eval_count 282, eval_duration 4,535,599,000ns)
-    text='검색한 문서로 답한다'  TTFT 350 ms  전체 4890 ms  출력 282 토큰  62.2 토큰/초
-[3] 공통 인터페이스 (TODO 3): LLM_PROVIDER=fake
-    fake/fake-echo: '가짜 답변: 로컬 LLM 과 API 의 차이를 한 줄로'  (입력 8, 출력 10 토큰)
-[4] 폴백 (TODO 4): 주 공급자(장애) → 보조 공급자
-    답한 공급자: fake/backup, 실패 기록: ['fake: fake provider is down']
-[5] 사용량 기록 (TODO 5): part2_llm/local_llm_serving/outputs/usage.csv
-    timestamp,provider,model,input_tokens,output_tokens,latency_ms,ttft_ms,stop_reason
-[6] (선택) 100만 토큰당 비용 (TODO 6) — 모두 가정값, 측정 아님
-    API claude-opus-5-5, 출력만 100만 토큰           : $20.00
-    API claude-opus-5-5, 입력 80%·출력 20% 섞인 100만 : $7.20
-    로컬은 '출력 100만 토큰을 생성하는 시간' 기준(입력 처리 시간은 생략) → 위 첫 줄(출력만)과 비교:
-    로컬  30 토큰/초 가정, 250W, $0.15/kWh: 전기만 $0.35, 장비 감가 $0.05/시간 포함 $0.81
-    로컬  60 토큰/초 가정, 250W, $0.15/kWh: 전기만 $0.17, 장비 감가 $0.05/시간 포함 $0.41
-    로컬 120 토큰/초 가정, 250W, $0.15/kWh: 전기만 $0.09, 장비 감가 $0.05/시간 포함 $0.20
-    ※ 로컬 품질은 큰 API 모델과 다르다 — 같은 토큰 수라도 같은 결과가 아니다(비용만으로 고르지 않는다).
-```
-
-**해석**
-- [2] TTFT(350ms)와 전체 시간(4.89초)은 다른 것을 잽니다. 채팅 UI는 TTFT가 짧으면 "빠르다"고 느끼고, 긴 답은 토큰/초가 대기 시간을 정합니다.
-- [3]·[4] 호출부(`generate`)는 그대로이고 설정·목록만 바뀝니다. 폴백 뒤에도 `usage.provider/model`에 실제로 답한 공급자가 남습니다.
-- [6] 전기료만 보면 로컬이 훨씬 싸 보이지만, 가정값(토큰/초·전력·전기 단가·장비 감가)에 따라 몇 배씩 바뀝니다. 0.5B 모델과 Opus는 품질이 전혀 다르므로 이 숫자만으로 고르면 안 됩니다. 실제 토큰/초는 `measure_local_models.py`로 재서 넣으세요. API 단가는 작성 시점 2026-10 기준(P1-01 표)이며 [공식 가격 페이지](https://platform.claude.com/docs/en/about-claude/pricing)에서 재확인하세요.
-
-## 9. 자주 나는 오류
+## 6. 자주 나는 오류
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
@@ -258,23 +149,22 @@ LLM_PROVIDER=ollama OLLAMA_MODEL=qwen2.5:0.5b python part2_llm/local_llm_serving
 | `LLM_PROVIDER=claude`인데 `ValueError` | 키 없음 | `.env`에 `ANTHROPIC_API_KEY`(커밋 금지) |
 | CSV 중간에 머리글이 또 있음 | 덧붙일 때마다 머리글을 씀 | 파일이 없을 때만 `writeheader()` |
 
-## 10. 과제
+## 7. 과제
 
-1. (사용자 PC) `measure_local_models.py`로 0.5B / 1.5B / 3B의 TTFT·토큰/초·VRAM을 측정해 experiments 표를 채우고, RTX 3070에서 "서비스 기본값으로 쓸 만한 크기"를 근거와 함께 고르세요(3B는 라이선스도 고려).
+1. (사용자 PC) 0.5B / 1.5B / 3B 모델의 TTFT·토큰/초·VRAM을 직접 측정해 표로 정리하고, RTX 3070에서 "서비스 기본값으로 쓸 만한 크기"를 근거와 함께 고르세요(3B는 라이선스도 고려).
 2. 같은 질문 5개를 `LLM_PROVIDER=ollama`(0.5B, 1.5B)와 `claude`로 보내 품질을 비교하세요(키가 있으면). 토큰 수가 공급자마다 어떻게 다른지도 `usage.csv`로 확인하세요.
 3. `OLLAMA_NUM_PARALLEL`을 1과 2로 바꿔 동시 요청 2개를 보낼 때 TTFT가 어떻게 변하는지 재 보세요(서버 재시작 필요, Ollama FAQ 참고).
 4. "Claude가 주, 로컬이 보조"인 고객 상담 봇에서 폴백이 일어났을 때 사용자에게 무엇을 보여 줄지, 어떤 지표를 모니터링할지 설계로 답하세요.
 
-## 11. 체크리스트
+## 8. 체크리스트
 
-- [ ] `IMPL=starter pytest part2_llm/local_llm_serving/tests` 가 모두 통과한다
 - [ ] Ollama 스트리밍 줄 하나와 마지막 줄의 필드를 설명할 수 있다
 - [ ] TTFT와 토큰/초의 차이, 각각이 사용자 경험의 어디에 영향을 주는지 안다
 - [ ] 공급자를 바꾸면 달라지는 것 4가지(토큰·스트리밍 형식·오류·품질)를 말할 수 있다
 - [ ] 폴백해야 하는 오류와 하면 안 되는 오류를 구분한다
 - [ ] RTX 3070에서 모델 크기를 고르는 기준(100% GPU·토큰/초·여유 메모리·라이선스)을 안다
 
-## 12. 다음 단계 연결
+## 9. 다음 단계 연결
 
 - **P2-02 Claude API 기초**: 이 실습의 `ClaudeClient`가 쓰는 메시지 구조·스트리밍·구조화 출력을 깊게 다룹니다.
 - **P2-03 비용·지연**: `usage.csv` 같은 기록으로 프롬프트 캐싱·배치의 효과를 수치로 봅니다.

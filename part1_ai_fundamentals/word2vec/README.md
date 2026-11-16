@@ -3,11 +3,11 @@
 | 항목 | 값 |
 |---|---|
 | 실습 ID | P1-03 (메인) |
-| 주차 · 진행 순서 | W3 · P1-02(Embedding) 다음 |
-| 예상 시간 | 1~2시간 (짧은 실습) |
-| 파일 | `starter.py`(직접 채우기), `solution.py`(정답), `tests/test_p1_03_word2vec.py`, `run_demo.py` |
 | 소속 | [Part 1 — AI 원리](../README.md) |
-| 선택 과제 | [advanced/](./advanced/README.md) — Skip-gram/CBOW·Negative Sampling 직접 구현 (P1-03A) |
+
+> **최종 서비스에서의 위치:** 서비스 코드에 직접 들어가지는 않지만, **임베딩이 왜 뜻을 담는지**(분포 가설)와 "단어 하나에 벡터 하나"의 한계를 이해하면 검색 품질이 나쁠 때 원인을 짚고(Part 3 평가) 임베딩 fine-tuning이 언제 값어치가 있는지(Part 5) 판단할 수 있습니다.
+
+> 이 문서에 나오는 `함수·파일 이름`(예: `run_demo.py`)은 이전 실습 코드(커밋 `aa46d2f`)의 이름입니다. 그 코드는 지웠고 개념만 남겼습니다. 옛 코드가 필요하면 `git checkout aa46d2f`(복구 방법은 [루트 README](../../README.md#지금-어디를-보면-되나-학습-방식)).
 
 > 방향: **짧게 — 개념 설명 + gensim 짧은 실행.** 알고리즘 구현은 gensim에 맡기고, 임베딩 학습의 출발점인 분포 가설과 "단어 하나에 벡터 하나"의 한계를 서비스 판단으로 연결합니다.
 
@@ -94,95 +94,7 @@ Negative Sampling은 질문을 "(sat, cat)은 진짜 이웃인가? (sat, coffee)
   - σ(x) = 1 / (1 + e^{−x}), v_w: 가운데 단어 벡터, v'_o: 진짜 주변 단어 벡터, n_i: 오답 단어
 - 유사도: cos(a, b) = (a · b) / (‖a‖ ‖b‖) — P1-02와 같다
 
-## 6. 실행법
-
-저장소 루트에서 실행합니다.
-
-**Windows PowerShell**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:PYTHONUTF8 = "1"
-pip install -r requirements/part1.txt
-
-# 1) 남은 TODO 확인
-python part1_ai_fundamentals/word2vec/starter.py
-
-# 2) 직접 구현 검사 (TODO 가 남은 테스트는 skip)
-$env:IMPL = "starter"; pytest part1_ai_fundamentals/word2vec/tests; Remove-Item Env:IMPL
-
-# 3) 정답 코드 검사
-pytest part1_ai_fundamentals/word2vec/tests
-
-# 4) 데모 (다운로드·API 키 불필요, CPU 수 초)
-python part1_ai_fundamentals/word2vec/run_demo.py --impl starter
-```
-
-**bash (Linux/macOS)**
-
-```bash
-source .venv/bin/activate
-python part1_ai_fundamentals/word2vec/starter.py
-IMPL=starter pytest part1_ai_fundamentals/word2vec/tests
-pytest part1_ai_fundamentals/word2vec/tests
-python part1_ai_fundamentals/word2vec/run_demo.py --impl solution
-```
-
-- 테스트는 정확한 값 대신 상대 비교(cat–dog > cat–coffee 등)로 검사합니다. 반복은 모두 길이가 정해진 `for`라 멈추지 않는 일이 없습니다.
-- 데모의 [5]는 P1-02의 `embedding/solution.py`에 있는 `fake_embed`를 불러와 비교합니다.
-
-## 7. TODO 목록
-
-| TODO | 함수 | 내용 |
-|---|---|---|
-| 1 | `preprocess` | 소문자 → 구두점 제거 → 공백 분리, 빈 줄 버리기 |
-| 2 | `train_word2vec` | `Word2Vec(...)` → `build_vocab` → (`epochs > 0`이면) `train`, `workers=1`·`sample=0` 고정 |
-| 3 | `pair_similarities`, `nearest` | 쌍 코사인(OOV면 `None`), `most_similar` 최근접(OOV면 `[]`) |
-| 4 (선택) | `sentence_vector` | 아는 단어 벡터의 평균, 모두 OOV면 0 벡터 |
-
-제공 코드: `load_lines`(말뭉치 읽기).
-
-## 8. 예상 결과
-
-아래는 클라우드 작업 환경(CPU, Python 3.12.13, gensim 4.4.0, numpy 2.5.4)에서 `run_demo.py --impl solution`을 **실제로 실행한 출력**입니다. 학습 시간은 실행마다 조금 다릅니다.
-
-```
-[1] 전처리: 문장 48개, 토큰 504개, 고유 단어 345개
-    예) 'the cat sat on the mat and the dog sat on the log.' → ['the', 'cat', 'sat', 'on', 'the', 'mat', 'and', 'the', 'dog', 'sat', 'on', 'the', 'log']
-    예) '학습이 잘 되면 손실 값이 조금씩 줄어든다.' → ['학습이', '잘', '되면', '손실', '값이', '조금씩', '줄어든다']
-[2] 학습 (vector_size=32, window=2, negative=5, epochs=200, seed=0, workers=1)
-    skip-gram 0.20초
-    cbow      0.16초
-[3] 단어 쌍 코사인: 학습 전(무작위 초기값) → 학습 후 skip-gram / cbow
-     cat–dog     -0.32 →  0.97 /  0.95
-     mat–log     -0.04 →  0.92 /  0.91
-     cat–coffee   0.20 →  0.53 /  0.63
-     mat–coffee   0.06 →  0.65 /  0.61
-     cat–강아지       OOV →   OOV /   OOV
-[4] 최근접 단어 top-5 (skip-gram)
-    cat: dog(0.97), sat(0.94), size(0.94), log(0.93), likes(0.93)
-    손실: 줄어든다(0.97), 조금씩(0.96), 줄지(0.96), 되면(0.93), 값이(0.91)
-    강아지: [] (OOV — 학습 데이터에 없는 단어)
-[5] (선택) 문장 검색: Word2Vec 평균 vs P1-02 가짜 임베딩(fake_embed, 글자 2-gram)
-    질의: a dog and a cat  (토큰 ['a', 'dog', 'and', 'a', 'cat'], 어휘에 있는 것 ['a', 'dog', 'and', 'a', 'cat'])
-      word2vec 평균: #39(0.89), #41(0.88), #32(0.86)
-      fake_embed   : #33(0.44), #24(0.43), #41(0.41)
-    질의: dog cat  (토큰 ['dog', 'cat'], 어휘에 있는 것 ['dog', 'cat'])
-      word2vec 평균: #45(0.94), #46(0.91), #29(0.87)
-      fake_embed   : #45(0.45), #33(0.39), #40(0.34)
-    질의: 강아지와 고양이  (토큰 ['강아지와', '고양이'], 어휘에 있는 것 [])
-      word2vec 평균: 검색 불가 (모든 토큰이 OOV → 0 벡터)
-      fake_embed   : #48(0.21), #47(0.18), #32(0.17)
-    참고 #45: the cat sat on the mat and the dog sat on the log.
-    참고 #46: the cat likes the warm sun and the dog likes the long walk.
-```
-
-**해석**
-- [3] 학습 전에는 무작위라 cat–dog가 −0.32였지만, 학습 후 0.97(Skip-gram)이 되었습니다. 대조군 cat–coffee(0.53)보다 확실히 높습니다. 다만 **대조군도 0.5~0.65로 꽤 높습니다.** 말뭉치가 504토큰뿐이라 모든 단어가 서로 비슷해지기 때문이며, 그래서 숫자 하나가 아니라 대조군과의 **차이**를 봅니다.
-- [4] `cat`의 최근접에 `dog`·`log`(같은 자리에 오는 단어)와 함께 `sat`·`size`가 섞였습니다. 작은 말뭉치에서는 "같이 자주 나온 단어"와 "같은 자리에 오는 단어"가 함께 가까워집니다. `손실`의 이웃 `줄어든다`·`줄지`는 반대 방향의 말이 같은 문맥이라 가까워진 예입니다. 유사어 확장에 그대로 쓰면 위험한 이유입니다.
-- [5] Word2Vec 평균으로 `a dog and a cat`을 검색하면 정답 #45·#46이 상위 3에 없습니다. 흔한 단어 `a`·`and`가 평균을 끌고 가기 때문입니다. 흔한 단어를 뺀 `dog cat`은 #45·#46이 1·2위입니다. `강아지와 고양이`는 모든 단어가 OOV라 검색 자체가 안 됩니다(`fake_embed`의 0.2 안팎은 해시 잡음). 실제 문장 임베딩 모델의 결과는 P1-02 `embed_with_openai.py`로 사용자 PC에서 확인하세요.
-
-## 9. 자주 나는 오류
+## 6. 자주 나는 오류
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
@@ -193,23 +105,22 @@ python part1_ai_fundamentals/word2vec/run_demo.py --impl solution
 | `train` 호출 오류 `total_examples` | 문장 수를 안 넘김 | `total_examples=len(sentences)` |
 | 다른 PC에서 숫자가 조금 다름 | gensim 버전·플랫폼 차이 | 상대 비교로 판단(테스트도 그렇게 작성됨) |
 
-## 10. 과제
+## 7. 과제
 
 1. `window`를 1 / 2 / 5로 바꿔 `cat`의 최근접 5개가 어떻게 바뀌는지 기록하세요. 문법적 이웃과 주제적 이웃 중 어느 쪽이 늘어나나요?
 2. `epochs`를 5 / 50 / 200으로 바꿔 cat–dog와 대조군 cat–coffee의 차이를 표로 만드세요.
 3. `sentence_vector`에서 흔한 단어(the, a, and, on)를 빼고 [5]의 `a dog and a cat`을 다시 검색해 보세요. 결과가 어떻게 바뀌나요? 실무에서 이 방식의 한계는 무엇인가요?
 4. 사내 FAQ 검색에 "유사어 확장"을 넣는다고 할 때, Word2Vec 최근접 단어를 사전에 넣기 전에 무엇을 검토해야 할지 3가지 적어 보세요.
 
-## 11. 체크리스트
+## 8. 체크리스트
 
-- [ ] `IMPL=starter pytest part1_ai_fundamentals/word2vec/tests` 가 모두 통과한다
 - [ ] 분포 가설을 예문으로 설명할 수 있다
 - [ ] Skip-gram과 CBOW의 입력·출력을 그림으로 그릴 수 있다
 - [ ] Negative Sampling이 빠른 이유를 "계산하는 단어 수"로 설명할 수 있다
 - [ ] 정적 임베딩이 다의어·OOV에 약한 이유를 안다
 - [ ] 실무 RAG가 문장 임베딩 모델을 쓰는 이유와, 그래도 Word2Vec을 쓰는 경우를 말할 수 있다
 
-## 12. 다음 단계 연결
+## 9. 다음 단계 연결
 
 - **P1-05 Transformer**: 어텐션이 문맥에 따라 단어 표현을 바꾸는 원리 → "단어 하나에 벡터 하나" 한계의 해법.
 - **Part 3**: 문장 임베딩(Dense) 검색과 BM25를 비교합니다. 이 실습의 유사어 확장은 BM25 질의 확장 아이디어로 이어집니다.

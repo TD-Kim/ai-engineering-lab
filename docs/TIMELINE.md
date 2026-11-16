@@ -37,3 +37,9 @@
 - `python_ai_server/pyproject.toml` (수정)
 - `python_ai_server/src/ai_server/llm/ollama_chat.py` (추가)
 - 메모: 
+
+### 23:37 — 힌트 제공 규칙 5단계로 변경 (CLAUDE.md §3)
+
+- `CLAUDE.md` (수정)
+- `docs/PROJECT_PLAN.md` (수정)
+- 메모: 

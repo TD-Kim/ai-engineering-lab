@@ -3,9 +3,9 @@
 커밋할 때마다 `scripts/timeline.py`가 자동으로 기록합니다(언제 · 무엇을 · 어떤 함수를).
 각 항목의 **메모**는 직접 채웁니다. 배운 점, 막혔던 점, 다음에 할 일을 적어 두세요.
 
-## 2026-11-16
+## 2026-11-17
 
-### 16:38 — 프로젝트 구조 만들기: python_ai_server 골격, 타임라인 자동 기록
+### 01:38 — 프로젝트 구조 만들기: python_ai_server 골격, 타임라인 자동 기록
 
 - `.githooks/post-commit` (추가)
 - `.gitignore` (수정)
@@ -30,16 +30,22 @@
 - `spring_boot_server/README.md` (추가)
 - 메모: 
 
-## 2026-11-17
-
 ### 01:57 — 2026. 11. 17. 학습방법 개편 및 시작
 
 - `python_ai_server/pyproject.toml` (수정)
 - `python_ai_server/src/ai_server/llm/ollama_chat.py` (추가)
 - 메모: 
 
-### 23:37 — 힌트 제공 규칙 5단계로 변경 (CLAUDE.md §3)
+### 08:37 — 힌트 제공 규칙 5단계로 변경 (CLAUDE.md §3)
 
 - `CLAUDE.md` (수정)
 - `docs/PROJECT_PLAN.md` (수정)
+- 메모: 
+
+### 17:12 — 총괄 세션 인계 메모 추가, 타임라인을 한국 시각(KST) 기준으로 기록
+
+- `CLAUDE.md` (수정)
+- `docs/HANDOFF.md` (추가)
+- `scripts/timeline.py` (수정)
+  - 수정: `build_entry`, `append`
 - 메모: 

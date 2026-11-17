@@ -18,7 +18,12 @@ from __future__ import annotations
 import ast
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+# 어느 PC에서 커밋해도 같은 기준으로 보이도록 한국 시각(KST, UTC+9)으로 기록한다.
+# zoneinfo 는 Windows 에서 tzdata 패키지가 필요해 고정 오프셋을 쓴다(한국은 서머타임 없음).
+KST = timezone(timedelta(hours=9))
 
 TIMELINE = Path("docs") / "TIMELINE.md"
 HEADER = (
@@ -103,7 +108,8 @@ def build_entry(commit: str) -> str | None:
     files = [(s, p) for s, p in changed_files(commit) if p != TIMELINE.as_posix()]
     if not files:
         return None  # 타임라인만 바뀐 커밋은 기록하지 않는다
-    when = git("show", "-s", "--format=%ad", "--date=format:%Y-%m-%d %H:%M", commit).strip()
+    raw = git("show", "-s", "--format=%aI", commit).strip()  # 예: 2026-11-17T01:57:00+09:00
+    when = datetime.fromisoformat(raw).astimezone(KST).strftime("%Y-%m-%d %H:%M")
     subject = git("show", "-s", "--format=%s", commit).strip()
     parents = git("show", "-s", "--format=%P", commit).split()
     parent = parents[0] if parents else None
@@ -125,7 +131,9 @@ def build_entry(commit: str) -> str | None:
 def append(day: str, entry: str) -> None:
     text = TIMELINE.read_text(encoding="utf-8") if TIMELINE.exists() else HEADER
     day_header = f"## {day}"
-    if day_header not in text:
+    # 기록은 항상 맨 끝에 붙는다. 마지막 날짜 제목이 이 항목의 날짜와 다르면 새 날짜 제목을 단다.
+    last_day = [line for line in text.splitlines() if line.startswith("## ")]
+    if not last_day or last_day[-1].strip() != day_header:
         text = text.rstrip("\n") + f"\n\n{day_header}\n"
     text = text.rstrip("\n") + "\n\n" + entry
     TIMELINE.parent.mkdir(parents=True, exist_ok=True)

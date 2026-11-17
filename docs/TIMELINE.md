@@ -54,4 +54,4 @@
 
 - `python_ai_server/src/ai_server/llm/ollama_chat.py` (수정)
   - 새로 작성: `chat`, `makeDedentStr`
-- 메모: 
+- 메모: Ollama로 qwen2.5:1.5b에 문서를 시스템 프롬프트로 넣어 간단한 RAG 테스트. 문서가 1개일 때는 "문서에 있는 내용으로만 답하라" 규칙을 잘 따랐지만, 3개로 늘리자 규칙을 벗어난 답이 나옴. 다음 할 일: 규칙 강화, 근거(문서 번호) 인용 요구, 더 큰 모델로 바꿔 비교.

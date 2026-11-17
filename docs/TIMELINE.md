@@ -49,3 +49,9 @@
 - `scripts/timeline.py` (수정)
   - 수정: `build_entry`, `append`
 - 메모: 
+
+### 23:48 — 2026. 11. 17. 로컬 LLM 간단한 RAG 테스트
+
+- `python_ai_server/src/ai_server/llm/ollama_chat.py` (수정)
+  - 새로 작성: `chat`, `makeDedentStr`
+- 메모: 

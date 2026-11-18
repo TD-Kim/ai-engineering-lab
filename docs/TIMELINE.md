@@ -60,3 +60,11 @@
 
 - `docs/HANDOFF.md` (수정)
 - 메모: 
+
+## 2026-11-18
+
+### 13:38 — 학습 노트 스킬 추가: /note로 대화 속 개념 정리, /note 메모로 타임라인 메모 채우기
+
+- `.claude/skills/note/SKILL.md` (추가)
+- `CLAUDE.md` (수정)
+- 메모: 

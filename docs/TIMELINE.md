@@ -68,3 +68,8 @@
 - `.claude/skills/note/SKILL.md` (추가)
 - `CLAUDE.md` (수정)
 - 메모: 
+
+### 13:42 — 인계 메모: /note 학습 노트 스킬 기록
+
+- `docs/HANDOFF.md` (수정)
+- 메모: 

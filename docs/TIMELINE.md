@@ -186,3 +186,11 @@
 
 - `docs/notes/2026-11-26.md` (수정)
 - 메모: 
+
+### 23:15 — 2026. 11. 26. 규칙 강화 실험
+
+- `docs/notes/2026-11-26.md` (수정)
+- `python_ai_server/src/ai_server/llm/ollama_chat.py` (수정)
+  - 새로 작성: `chat_raw`, `build_messages`, `is_success`, `parse_response`, `normalize`, `check_citation`, `run_one`
+  - 수정: `chat`
+- 메모: 

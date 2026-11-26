@@ -163,3 +163,9 @@
 - `docs/HANDOFF.md` (수정)
 - `docs/notes/2026-11-26.md` (수정)
 - 메모: 
+
+### 17:22 — 학습 노트: HitRate@K·MRR 손계산과 쓰임에 맞는 지표 고르기 (폰 학습 5-1)
+
+- `docs/HANDOFF.md` (수정)
+- `docs/notes/2026-11-26.md` (수정)
+- 메모: 

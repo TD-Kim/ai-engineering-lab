@@ -145,3 +145,9 @@
 - `docs/HANDOFF.md` (수정)
 - `docs/notes/2026-11-26.md` (수정)
 - 메모: 
+
+### 16:52 — 학습 노트: BM25의 TF·IDF·길이 보정과 0점의 함정 (폰 학습 4-2)
+
+- `docs/HANDOFF.md` (수정)
+- `docs/notes/2026-11-26.md` (수정)
+- 메모: 

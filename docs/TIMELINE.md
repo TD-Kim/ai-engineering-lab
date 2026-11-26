@@ -151,3 +151,9 @@
 - `docs/HANDOFF.md` (수정)
 - `docs/notes/2026-11-26.md` (수정)
 - 메모: 
+
+### 16:59 — 학습 노트: Hybrid 검색, min-max 가중합과 RRF (폰 학습 4-3)
+
+- `docs/HANDOFF.md` (수정)
+- `docs/notes/2026-11-26.md` (수정)
+- 메모: 

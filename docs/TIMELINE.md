@@ -194,3 +194,10 @@
   - 새로 작성: `chat_raw`, `build_messages`, `is_success`, `parse_response`, `normalize`, `check_citation`, `run_one`
   - 수정: `chat`
 - 메모: 
+
+## 2026-11-27
+
+### 16:23 — 학습 노트: RTX 3070에서 7~8B 모델 돌리기(양자화, VRAM, 같은 계열로 비교)
+
+- `docs/notes/2026-11-27.md` (추가)
+- 메모: 
